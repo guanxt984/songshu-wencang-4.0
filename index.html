@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>枝枝笔记 NestNote</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="nest-sidebar" aria-label="知识巢列表">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span class="bird-body"></span>
+            <span class="bird-wing"></span>
+            <span class="bird-beak"></span>
+          </div>
+          <div>
+            <p>NestNote</p>
+            <h1>枝枝笔记</h1>
+          </div>
+        </div>
+
+        <button class="new-nest-button" id="newNestButton" type="button">新建知识巢</button>
+
+        <nav class="nest-list" id="nestList" aria-label="选择知识巢"></nav>
+
+        <section class="growth-card" aria-label="知识巢成长状态">
+          <div class="mini-branch" aria-hidden="true"></div>
+          <p class="label">当前成长</p>
+          <strong id="growthTitle">初筑小巢</strong>
+          <span id="growthText">拾起第一批树枝，手册会慢慢长出骨架。</span>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">AI 知识巢手册</p>
+            <h2 id="activeNestTitle">官官的面试巢</h2>
+          </div>
+          <div class="topbar-actions">
+            <label class="search-box">
+              <span aria-hidden="true">⌕</span>
+              <input id="searchInput" type="search" placeholder="在巢里找一找">
+            </label>
+            <button class="soft-button" id="sampleButton" type="button">放入示例树枝</button>
+          </div>
+        </header>
+
+        <div class="workspace-grid">
+          <aside class="manual-toc" aria-label="手册目录">
+            <div class="section-heading">
+              <span>手册目录</span>
+              <small id="sectionCount">0 章</small>
+            </div>
+            <div id="tocList" class="toc-list"></div>
+          </aside>
+
+          <article class="manual-panel" aria-label="知识手册">
+            <div class="manual-cover">
+              <div>
+                <p id="manualType">面试复习型</p>
+                <h3 id="manualTitle">《前端面试知识手册》</h3>
+              </div>
+              <div class="manual-stats">
+                <span><strong id="twigCount">0</strong> 根树枝</span>
+                <span><strong id="mergeCount">0</strong> 次加固</span>
+              </div>
+            </div>
+            <div id="manualView" class="manual-view"></div>
+          </article>
+
+          <aside class="right-rail" aria-label="拾枝与更新">
+            <section class="composer-card">
+              <div class="composer-hero" aria-hidden="true">
+                <div class="nest-illustration">
+                  <span class="twig twig-one"></span>
+                  <span class="twig twig-two"></span>
+                  <span class="twig twig-three"></span>
+                  <span class="egg"></span>
+                </div>
+              </div>
+              <div class="section-heading">
+                <span>拾取小树枝</span>
+                <small>粘贴任何内容</small>
+              </div>
+              <textarea id="twigInput" placeholder="把面经、摘抄、课程笔记、网页片段放到这里。小鸟会帮你辨认它适合编进哪一章。"></textarea>
+              <input id="sourceInput" class="source-input" type="text" placeholder="来源备注，可选">
+              <button class="primary-button" id="weaveButton" type="button">拾起这根树枝</button>
+            </section>
+
+            <section class="update-card">
+              <div class="section-heading">
+                <span>编巢记录</span>
+                <small id="logCount">0 条</small>
+              </div>
+              <div id="weaveLog" class="weave-log"></div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <template id="nestButtonTemplate">
+      <button class="nest-item" type="button">
+        <span class="nest-icon" aria-hidden="true"></span>
+        <span>
+          <strong></strong>
+          <small></small>
+        </span>
+      </button>
+    </template>
+
+    <template id="sectionTemplate">
+      <section class="manual-section">
+        <header>
+          <div>
+            <p></p>
+            <h4></h4>
+          </div>
+          <span class="frequency-pill"></span>
+        </header>
+        <div class="section-body"></div>
+      </section>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
