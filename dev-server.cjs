@@ -1,6 +1,6 @@
-import { createReadStream, existsSync } from "node:fs";
-import { createServer } from "node:http";
-import { extname, join, normalize } from "node:path";
+const { createReadStream, existsSync } = require("fs");
+const { createServer } = require("http");
+const { extname, join, normalize } = require("path");
 
 const port = Number(process.env.PORT || 5173);
 const root = process.cwd();

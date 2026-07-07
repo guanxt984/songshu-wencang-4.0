@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NestNote 字体预览</title>
+    <style>
+      @font-face {
+        font-family: "PreviewKuaiLe";
+        src: url("assets/fonts/ZCOOLKuaiLe-Regular.ttf") format("truetype");
+      }
+
+      @font-face {
+        font-family: "PreviewQingKe";
+        src: url("assets/fonts/ZCOOLQingKeHuangYou-Regular.ttf") format("truetype");
+      }
+
+      @font-face {
+        font-family: "PreviewXiaoWei";
+        src: url("assets/fonts/ZCOOLXiaoWei-Regular.ttf") format("truetype");
+      }
+
+      @font-face {
+        font-family: "PreviewLongCang";
+        src: url("assets/fonts/LongCang-Regular.ttf") format("truetype");
+      }
+
+      :root {
+        --ink: #202020;
+        --purple: #6579b7;
+        --yellow: #ffd51f;
+        --green: #31a642;
+        --blue: #1575bd;
+        --paper: #fffdf7;
+        --line: #1d1d1d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 5% 9%, #fff 0 7%, transparent 7.2%),
+          linear-gradient(180deg, #f4efff, #fff7e7);
+        font-family: system-ui, sans-serif;
+      }
+
+      .page {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 18px;
+        height: 100vh;
+        padding: 22px;
+      }
+
+      header {
+        text-align: center;
+      }
+
+      header span {
+        display: inline-block;
+        width: 110px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--yellow);
+      }
+
+      header h1 {
+        margin: 10px 0 4px;
+        color: #552898;
+        font-size: 34px;
+      }
+
+      header p {
+        margin: 0;
+        color: #68605a;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .sample {
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+        gap: 12px;
+        min-width: 0;
+        padding: 16px;
+        border: 3px solid var(--line);
+        border-radius: 30px;
+        background: var(--paper);
+        box-shadow: 7px 7px 0 var(--line);
+      }
+
+      .sample::before {
+        content: attr(data-option);
+        justify-self: start;
+        padding: 6px 12px;
+        border: 3px solid var(--line);
+        border-radius: 999px;
+        background: var(--yellow);
+        font-family: system-ui, sans-serif;
+        font-weight: 800;
+      }
+
+      .sample h2 {
+        margin: 0;
+        color: var(--purple);
+        font-size: 42px;
+        line-height: 1.12;
+        font-weight: 400;
+      }
+
+      .doc {
+        min-height: 0;
+        padding: 14px;
+        border: 3px solid var(--line);
+        border-radius: 22px;
+        background: #fff9d9;
+      }
+
+      .doc h3 {
+        margin: 0 0 10px;
+        color: var(--purple);
+        font-size: 28px;
+        font-weight: 400;
+      }
+
+      .doc p {
+        margin: 0 0 10px;
+        font-size: 20px;
+        line-height: 1.55;
+      }
+
+      .twig {
+        padding: 10px;
+        border: 3px solid var(--line);
+        border-radius: 18px;
+        background: #fff;
+      }
+
+      .twig strong {
+        display: block;
+        color: var(--green);
+        font-size: 22px;
+        font-weight: 400;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .actions span {
+        flex: 1;
+        padding: 9px 8px;
+        border: 3px solid var(--line);
+        border-radius: 16px;
+        text-align: center;
+        background: var(--green);
+        font-size: 20px;
+      }
+
+      .kuai {
+        font-family: "PreviewKuaiLe", sans-serif;
+      }
+
+      .qing {
+        font-family: "PreviewQingKe", sans-serif;
+      }
+
+      .xiao {
+        font-family: "PreviewXiaoWei", serif;
+      }
+
+      .long {
+        font-family: "PreviewLongCang", cursive;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <span></span>
+        <h1>枝枝笔记字体候选</h1>
+        <p>同一组内容，四种可爱字体方向。你选 A/B/C/D，我再应用到正式界面。</p>
+      </header>
+
+      <section class="grid">
+        <article class="sample kuai" data-option="A 站酷快乐体">
+          <h2>我的读书巢</h2>
+          <section class="doc">
+            <h3>树枝巢</h3>
+            <p>把零散摘抄整理成一篇清晰、完整、可回看的知识文档。</p>
+            <div class="twig">
+              <strong>小树枝排行</strong>
+              真正有力量的句子，会让人看见自己说不清的感受。
+            </div>
+          </section>
+          <div class="actions">
+            <span>拾枝</span>
+            <span>保存小树枝</span>
+          </div>
+        </article>
+
+        <article class="sample qing" data-option="B 站酷庆科黄油体">
+          <h2>我的读书巢</h2>
+          <section class="doc">
+            <h3>树枝巢</h3>
+            <p>把零散摘抄整理成一篇清晰、完整、可回看的知识文档。</p>
+            <div class="twig">
+              <strong>小树枝排行</strong>
+              真正有力量的句子，会让人看见自己说不清的感受。
+            </div>
+          </section>
+          <div class="actions">
+            <span>拾枝</span>
+            <span>保存小树枝</span>
+          </div>
+        </article>
+
+        <article class="sample xiao" data-option="C 站酷小薇体">
+          <h2>我的读书巢</h2>
+          <section class="doc">
+            <h3>树枝巢</h3>
+            <p>把零散摘抄整理成一篇清晰、完整、可回看的知识文档。</p>
+            <div class="twig">
+              <strong>小树枝排行</strong>
+              真正有力量的句子，会让人看见自己说不清的感受。
+            </div>
+          </section>
+          <div class="actions">
+            <span>拾枝</span>
+            <span>保存小树枝</span>
+          </div>
+        </article>
+
+        <article class="sample long" data-option="D 龙藏体">
+          <h2>我的读书巢</h2>
+          <section class="doc">
+            <h3>树枝巢</h3>
+            <p>把零散摘抄整理成一篇清晰、完整、可回看的知识文档。</p>
+            <div class="twig">
+              <strong>小树枝排行</strong>
+              真正有力量的句子，会让人看见自己说不清的感受。
+            </div>
+          </section>
+          <div class="actions">
+            <span>拾枝</span>
+            <span>保存小树枝</span>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
