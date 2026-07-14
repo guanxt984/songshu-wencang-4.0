@@ -1,360 +1,690 @@
+const STORAGE_KEY = "squirrel-warehouse-mvp";
+const USE_API_ORGANIZER = false;
+
 const asset = (name, className, alt = "") =>
-  `<img class="${className}" src="assets/illustrations/${name}" alt="${alt}" aria-hidden="${alt ? "false" : "true"}">`;
+  `<img class="${className}" src="assets/illustrations/${name}" alt="${alt}" ${alt ? "" : 'aria-hidden="true"'}>`;
 
-const squirrelImg = (className) => asset("squirrel-crayon.png", className);
-const pineconeImg = (className) => asset("pinecone-crayon.png", className);
-const leafImg = (className) => asset("leaf-crayon.png", className);
-const bookImg = (className) => asset("book-crayon.png", className);
-const starImg = (className) => asset("star-crayon.png", className);
-const searchImg = (className) => asset("search-crayon.png", className);
-const userImg = (className) => asset("user-crayon.png", className);
-const plusImg = (className) => asset("plus-crayon.png", className);
-const moreImg = (className) => asset("more-crayon.png", className);
-const grassImg = (className) => asset("grass-crayon.png", className);
-
-const warehouses = [
-  {
-    id: "interview",
-    name: "面试经验整理",
-    count: 128,
-    updated: "今天 10:30 更新",
-    tone: "green",
-    badge: "leaf",
-    temp: { current: 3, limit: 5 },
-    ledger: { shelves: 6, featured: 12, lastOrganized: "今天 10:30", mode: "放进现有果架" },
-    intro: "系统梳理面试全过程的经验与技巧，帮助从容应对各类面试。",
-    chapters: [
-      ["简历准备", "简历不是经历堆叠，而是让面试官快速理解你与岗位的关系。", ["把项目写成背景、行动、结果的清晰故事，减少空泛技术名词。", "围绕目标岗位调整表达，让重点经历先被看见。", "为每个项目准备 1 分钟版本和 3 分钟展开版本。"]],
-      ["面试前准备", "提前把岗位、公司、作品和自我介绍放进同一条线，现场表达会更稳定。", ["自我介绍先给结论，再补充最能证明匹配度的经历。", "准备常见问题时，重点是整理自己的判断过程。", "把岗位 JD 中反复出现的词和项目经历对应起来。"]],
-      ["面试中的表现", "稳定、清楚、有来有回，比用力表现更容易建立信任。", ["回答前可以先确认理解。", "不会的问题说明思路边界和查证方向。", "用具体场景解释能力，而不是直接贴标签。"]],
-      ["常见问题回答思路", "相似问题可以收进同一组答案骨架里，复盘时更容易调用。", ["失败经历要讲清复盘后改变了什么。", "职业规划要体现对岗位阶段的理解。", "离职原因保持事实清楚。"]],
-      ["面试后的跟进", "面试结束后的记录能帮助下一次更快修正表达。", ["记录被追问最多的部分。", "把现场卡住的问题补成可复用答案。", "复盘岗位匹配度和判断原因。"]],
-      ["其他经验补充", "暂时无法归入前面章节的经验，会先保留在这里。", ["后续松果增多后，AI 会把它们放进更合适的位置。"]],
-    ],
-    sources: ["07-12 09:41", "07-12 08:22", "07-11 22:15", "07-11 16:05"],
-  },
-  {
-    id: "reading",
-    name: "《被讨厌的勇气》摘抄",
-    count: 86,
-    updated: "昨天 21:15 更新",
-    tone: "yellow",
-    badge: "book",
-    temp: { current: 5, limit: 5 },
-    ledger: { shelves: 4, featured: 9, lastOrganized: "昨天 21:15", mode: "等待整理" },
-    intro: "把零散摘抄整理成主题清晰的阅读复盘，保留可再次引用的句子入口。",
-    chapters: [
-      ["课题分离", "许多摘抄都在提醒人分清自己的选择与他人的评价。", ["判断一件事是谁的课题，可以减少过度负责。", "自由常常伴随被评价的风险。", "关系中的边界感比讨好更能带来稳定。"]],
-      ["自我接纳", "自我接纳不是自我放弃，而是从真实处境开始行动。", ["接受现在的自己，才知道下一步从哪里开始。", "比较容易让注意力离开自己的生活。", "勇气不是不害怕，而是仍然选择行动。"]],
-    ],
-    sources: ["07-12 22:18", "07-12 19:02", "07-11 11:32", "07-10 21:45"],
-  },
-  {
-    id: "product",
-    name: "产品设计灵感",
-    count: 64,
-    updated: "07-11 16:40 更新",
-    tone: "peach",
-    badge: "heart",
-    temp: { current: 2, limit: 5 },
-    ledger: { shelves: 5, featured: 7, lastOrganized: "07-11 16:40", mode: "放进现有果架" },
-    intro: "收拢关于产品体验、AI 整理、信任感和低输入成本的想法。",
-    chapters: [
-      ["低输入成本", "用户想保存和复盘，而不是先填写目标、选择模板、设计分类。", ["先让用户把材料放进来，再让 AI 根据内容长出果架。", "默认流程短到只有添加和整理。", "不要让用户在开始前理解复杂概念。"]],
-      ["来源可追溯", "复盘文档越像一篇自然文章，越需要保留原始松果入口。", ["每个重点条目都应该能打开原始松果。", "精选松果在文档里要更容易被看见。", "重新整理前强调原始内容不会丢失。"]],
-    ],
-    sources: ["07-11 16:40", "07-11 15:28", "07-10 22:01", "07-10 20:41"],
-  },
-  {
-    id: "study",
-    name: "工作学习笔记",
-    count: 92,
-    updated: "07-10 09:20 更新",
-    tone: "purple",
-    badge: "case",
-    temp: { current: 4, limit: 5 },
-    ledger: { shelves: 3, featured: 6, lastOrganized: "07-10 09:20", mode: "放进现有果架" },
-    intro: "把工作方法、学习心得和复盘记录整理成可查询的长期笔记。",
-    chapters: [["任务拆解", "把模糊任务拆成可执行的下一步，能降低开始成本。", ["先确认目标和交付物。", "任务过大时，先做最小可验证版本。", "把等待外部反馈的事项单独标出来。"]]],
-    sources: ["07-10 09:20", "07-09 18:05", "07-08 21:00", "07-08 09:16"],
-  },
-  {
-    id: "life",
-    name: "生活中的小确幸",
-    count: 31,
-    updated: "07-09 22:18 更新",
-    tone: "blue",
-    badge: "sprout",
-    temp: { current: 1, limit: 5 },
-    ledger: { shelves: 2, featured: 3, lastOrganized: "07-09 22:18", mode: "稍后整理" },
-    intro: "保存日常里值得回看的细小片段，让它们不被时间冲散。",
-    chapters: [["温柔瞬间", "一些看似很小的记录，回看时会变成稳定的情绪支点。", ["记录当时的场景，比只写结论更容易唤起记忆。", "可以把同类小事归到同一个章节里。", "精选松果适合保留原句和时间。"]]],
-    sources: ["07-09 22:18", "07-08 19:27", "07-07 16:44", "07-07 09:31"],
-  },
-];
-
-const state = {
-  activeId: "interview",
-  query: "",
-  shelfOpen: false,
+const icons = {
+  squirrel: (className) => asset("squirrel-crayon.png", className),
+  logo: (className) => asset("squirrel-wencang-logo-ip.png", className, "松鼠文仓 logo"),
+  pinecone: (className) => asset("pinecone-icon.png", className),
+  leaf: (className) => asset("leaf-crayon.png", className),
+  book: (className) => asset("book-crayon.png", className),
+  star: (className) => asset("star-crayon.png", className),
+  search: (className) => asset("search-crayon.png", className),
+  user: (className) => asset("user-crayon.png", className),
+  plus: (className) => asset("plus-crayon.png", className),
+  more: (className) => asset("more-crayon.png", className),
+  grass: (className) => asset("grass-crayon.png", className),
 };
 
+const nowText = () => "今天 " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) + " 更新";
+const uid = (prefix) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+
+const initialState = {
+  version: 3,
+  activeWarehouseId: "interview",
+  query: "",
+  shelfOpen: false,
+  addOpen: false,
+  newPineconeText: "",
+  referenceIds: [],
+  toast: "",
+  warehouses: [
+    {
+      id: "interview",
+      name: "面试经验整理",
+      updatedAt: "今天 10:30 更新",
+      tempLimit: 5,
+      pinecones: [
+        { id: "p1", content: "项目经历要写清楚背景、行动和结果，不要只堆技术名词。", status: "shelved", shelfId: "resume", tags: ["重点"], isFeatured: true, createdAt: "07-12 09:41" },
+        { id: "p2", content: "简历内容要围绕目标岗位展开，减少无关经历。", status: "shelved", shelfId: "resume", tags: ["可执行"], isFeatured: true, createdAt: "07-12 08:22" },
+        { id: "p3", content: "提前把岗位、公司、作品和自我介绍放进同一条线，现场表达会更稳定。", status: "shelved", shelfId: "before", tags: ["重点"], isFeatured: true, createdAt: "07-11 22:15" },
+        { id: "p4", content: "每个项目准备 1 分钟版本和 3 分钟展开版本。", status: "shelved", shelfId: "resume", tags: ["可执行"], isFeatured: true, createdAt: "07-11 16:05" },
+        { id: "p5", content: "回答问题时先给结论，再补充判断过程和具体例子。", status: "shelved", shelfId: "performance", tags: ["重点"], isFeatured: true, createdAt: "07-11 11:20" },
+        { id: "p6", content: "遇到不会的问题，可以说明思路边界，再讲自己会如何继续验证。", status: "shelved", shelfId: "performance", tags: ["可执行"], isFeatured: true, createdAt: "07-11 10:08" },
+        { id: "p7", content: "常见问题要提前准备结构，不要背完整稿，避免现场僵硬。", status: "shelved", shelfId: "qa", tags: ["高频"], isFeatured: true, createdAt: "07-10 22:40" },
+        { id: "p8", content: "反问环节优先问团队目标、评价标准和岗位真实挑战。", status: "shelved", shelfId: "qa", tags: ["重点"], isFeatured: true, createdAt: "07-10 21:55" },
+        { id: "p9", content: "面试后记录被追问最多的部分，下一轮重点补齐。", status: "shelved", shelfId: "follow", tags: ["复盘"], isFeatured: true, createdAt: "07-10 21:10" },
+        { id: "p10", content: "每轮结束后写下自己卡住的表达，下一次用更短的句子重讲。", status: "shelved", shelfId: "follow", tags: ["复盘"], isFeatured: true, createdAt: "07-10 20:36" },
+        { id: "p11", content: "零散经验先放在补充区，等相似内容多了再合并进正式章节。", status: "shelved", shelfId: "other", tags: ["补充"], isFeatured: true, createdAt: "07-09 18:20" },
+        { id: "p12", content: "不确定是否重要的提醒先保留引用，后续复盘时再决定取舍。", status: "shelved", shelfId: "other", tags: ["补充"], isFeatured: true, createdAt: "07-09 17:44" },
+      ],
+      shelves: [
+        { id: "resume", name: "简历准备", description: "把经历整理成岗位能快速理解的讲述线。" },
+        { id: "before", name: "面试前准备", description: "让岗位、公司和自我介绍提前对齐。" },
+        { id: "performance", name: "面试中的表现", description: "现场表达要稳定、清楚、有来有回。" },
+        { id: "qa", name: "常见问题回答思路", description: "把高频问题整理成可复用答案。" },
+        { id: "follow", name: "面试后的跟进", description: "用复盘记录修正下一次表达。" },
+        { id: "other", name: "其他经验补充", description: "暂时无法归入前面章节的经验。" },
+      ],
+      reviewDocument: {
+        title: "面试经验整理",
+        sections: [
+          {
+            shelfId: "resume",
+            heading: "简历准备",
+            summary: "简历不是经历堆叠，而是让面试官快速理解你与岗位的关系。",
+            bullets: [
+              { text: "把项目写成背景、行动、结果的清晰故事，减少空泛技术名词。", pineconeIds: ["p1"] },
+              { text: "围绕目标岗位调整表达，让重点经历先被看见。", pineconeIds: ["p2"] },
+              { text: "为每个项目准备 1 分钟版本和 3 分钟展开版本。", pineconeIds: ["p4"] },
+            ],
+          },
+          {
+            shelfId: "before",
+            heading: "面试前准备",
+            summary: "提前把岗位、公司、作品和自我介绍放进同一条线，现场表达会更稳定。",
+            bullets: [
+              { text: "自我介绍先给结论，再补充最能证明匹配度的经历。", pineconeIds: ["p3"] },
+              { text: "准备常见问题时，重点整理自己的判断过程和反问要点。", pineconeIds: ["p3"] },
+            ],
+          },
+          {
+            shelfId: "performance",
+            heading: "面试中的表现",
+            summary: "现场表达要稳定、清楚、有来有回，先把对方的问题接住。",
+            bullets: [
+              { text: "回答问题时先给结论，再补充判断过程和具体例子。", pineconeIds: ["p5"] },
+              { text: "遇到不会的问题，说明思路边界并讲清后续验证方式。", pineconeIds: ["p6"] },
+            ],
+          },
+          {
+            shelfId: "qa",
+            heading: "常见问题回答思路",
+            summary: "高频问题不需要背稿，更适合整理成可复用的回答结构。",
+            bullets: [
+              { text: "提前准备问题结构，保留自然表达空间。", pineconeIds: ["p7"] },
+              { text: "反问优先围绕团队目标、评价标准和岗位挑战。", pineconeIds: ["p8"] },
+            ],
+          },
+          {
+            shelfId: "follow",
+            heading: "面试后的跟进",
+            summary: "把被追问和表达卡住的地方记录下来，下一轮有明确补齐点。",
+            bullets: [
+              { text: "记录被追问最多的部分，下一轮重点补齐。", pineconeIds: ["p9"] },
+              { text: "用更短的句子重讲卡住的表达。", pineconeIds: ["p10"] },
+            ],
+          },
+          {
+            shelfId: "other",
+            heading: "其他经验补充",
+            summary: "暂时无法归类的提醒先保留引用，等内容变多后再合并。",
+            bullets: [
+              { text: "相似经验积累到一定数量后再并入正式章节。", pineconeIds: ["p11"] },
+              { text: "不确定是否重要的提醒先保留引用。", pineconeIds: ["p12"] },
+            ],
+          },
+        ],
+      },
+    },
+    makeWarehouse("reading", "《被讨厌的勇气》摘抄", "昨天 21:15 更新", [
+      "课题分离能让人分清自己的选择和他人的评价。",
+      "自由常常伴随被评价的风险。",
+      "自我接纳不是放弃，而是从真实处境开始行动。",
+    ]),
+    makeWarehouse("product", "产品设计灵感", "07-11 16:40 更新", [
+      "用户想保存和复盘，而不是先填写目标或选择模板。",
+      "复盘文档越像自然文章，越需要保留原始松果入口。",
+    ]),
+    makeWarehouse("study", "工作学习笔记", "07-10 09:20 更新", [
+      "把模糊任务拆成可执行的下一步，能降低开始成本。",
+      "等待外部反馈的事项要单独标出。",
+    ]),
+    makeWarehouse("life", "生活中的小确幸", "07-09 22:18 更新", [
+      "记录当时的场景，比只写结论更容易唤起记忆。",
+      "同类小事可以归到同一个章节里。",
+    ]),
+  ],
+};
+
+let state = loadState();
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
 
 render();
 
+function makeWarehouse(id, name, updatedAt, contents) {
+  const pinecones = contents.map((content, index) => ({
+    id: `${id}_p${index + 1}`,
+    content,
+    status: "shelved",
+    shelfId: index === 0 ? "main" : "notes",
+    tags: index === 0 ? ["重点"] : ["摘录"],
+    isFeatured: index === 0,
+    createdAt: `07-${12 - index} ${index ? "21:15" : "16:40"}`,
+  }));
+
+  return {
+    id,
+    name,
+    updatedAt,
+    tempLimit: 5,
+    pinecones,
+    shelves: [
+      { id: "main", name: name.includes("摘抄") ? "核心观点" : "主要线索", description: "最适合放入复盘文档的内容。" },
+      { id: "notes", name: "补充记录", description: "保留上下文和后续可展开的材料。" },
+    ],
+    reviewDocument: buildReviewDocument(name, [
+      {
+        shelfId: "main",
+        heading: name.includes("摘抄") ? "先把关键观点收拢起来" : "先抓住最重要的线索",
+        summary: "这部分把当前仓库里最值得回看的松果整理成一段清楚的复盘。",
+        bullets: pinecones.slice(0, 2).map((pinecone) => ({ text: pinecone.content, pineconeIds: [pinecone.id] })),
+      },
+    ]),
+  };
+}
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (saved?.version === initialState.version && saved?.warehouses?.length) {
+      return { ...initialState, ...saved, toast: "", referenceIds: [], newPineconeText: "" };
+    }
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  return structuredClone(initialState);
+}
+
+function saveState() {
+  const { toast: _toast, referenceIds: _referenceIds, ...persisted } = state;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+}
+
+function getActiveWarehouse() {
+  return state.warehouses.find((warehouse) => warehouse.id === state.activeWarehouseId) || state.warehouses[0];
+}
+
 function render() {
   const warehouse = getActiveWarehouse();
-  const chapters = getFilteredChapters(warehouse.chapters);
-  const activeTitle = chapters[0]?.[0] || warehouse.chapters[0][0];
+  const tempCount = warehouse.pinecones.filter((pinecone) => pinecone.status === "temp").length;
+  const featuredCount = warehouse.pinecones.filter((pinecone) => pinecone.isFeatured).length;
 
   app.innerHTML = `
     <section class="page-shell">
       <header class="topbar">
-        <button class="brand" type="button" data-action="home">
-          ${squirrelImg("brand-squirrel")}
-          <span>松鼠仓库</span>
-          ${leafImg("leaf brand-leaf")}
-        </button>
-        <div class="top-mascot">${pineconeImg("top-pinecone")}${squirrelImg("top-squirrel")}${leafImg("leaf top-leaf")}</div>
+        <div class="brand">
+          ${icons.logo("brand-squirrel")}
+          <div>
+            <h1>松鼠文仓</h1>
+            <p>把零散松果整理成可复盘的文档 ${icons.leaf("brand-leaf")}</p>
+          </div>
+        </div>
         <div class="top-actions">
-          <button class="round-button" type="button" data-action="global-search" aria-label="搜索">${searchImg("ui-search")}</button>
-          <button class="round-button" type="button" data-action="profile" aria-label="账号">${userImg("ui-user")}</button>
+          <button class="round-button" type="button" data-action="focus-search" aria-label="搜索">${icons.search("icon-img")}</button>
+          <button class="round-button" type="button" aria-label="账户">${icons.user("icon-img")}</button>
         </div>
       </header>
 
       <aside class="warehouse-panel">
         <div class="panel-head">
-          ${pineconeImg("tiny-pinecone")}
           <h2>松果仓列表</h2>
-          <button type="button" data-action="new" aria-label="新建">${plusImg("ui-plus")}</button>
+          <button class="icon-button green" type="button" data-action="create-warehouse" aria-label="新建松果仓">${icons.plus("icon-img")}</button>
         </div>
         <div class="warehouse-list">
-          ${warehouses.map(renderWarehouseCard).join("")}
+          ${state.warehouses.map(renderWarehouseCard).join("")}
         </div>
-        <div class="bottom-grass" aria-hidden="true">${grassImg("grass grass-a")}${grassImg("grass grass-b")}${grassImg("grass grass-c")}</div>
+        <div class="panel-grass">
+          ${icons.grass("grass-a")}
+          ${icons.grass("grass-b")}
+          ${icons.star("grass-star")}
+        </div>
       </aside>
 
       <main class="document-panel">
         <section class="document-card">
           <header class="doc-head">
-            <div class="title-block">
-              ${bookImg("book-icon")}
+            <div class="doc-title">
+              ${icons.book("book-icon")}
               <div>
-                <h1>${warehouse.name}</h1>
-                <p>${warehouse.intro}</p>
+                <h2>${escapeHtml(warehouse.reviewDocument.title)}</h2>
+                <div class="title-underline"></div>
               </div>
-              ${leafImg("leaf title-leaf")}
             </div>
             <div class="doc-actions">
               <label class="search-box">
-                ${searchImg("ui-search search-small")}
-                <input type="search" placeholder="搜索文档内容..." value="${escapeHtml(state.query)}" data-input="search">
+                ${icons.search("search-icon")}
+                <input id="doc-search" type="search" placeholder="搜索文档内容..." value="${escapeHtml(state.query)}" data-input="search">
               </label>
-              <button class="tool-button starred" type="button" data-action="favorite" aria-label="精选">${starImg("star-icon")}</button>
-              <button class="tool-button" type="button" data-action="more" aria-label="更多">${moreImg("ui-more")}</button>
+              <button class="tool-button" type="button" aria-label="精选">${icons.star("tool-img")}</button>
+              <button class="tool-button" type="button" aria-label="更多">${icons.more("tool-img more")}</button>
             </div>
-            ${renderLedger(warehouse)}
+            <div class="chips">
+              <span>${icons.book("chip-img")} ${warehouse.reviewDocument.sections.length} 个章节</span>
+              <span>${icons.star("chip-img")} ${featuredCount} 颗精选松果</span>
+              <span><b class="clock-dot"></b>${escapeHtml(warehouse.updatedAt)}</span>
+              <span class="${tempCount >= warehouse.tempLimit ? "chip-hot" : ""}">暂存栏 ${tempCount}/${warehouse.tempLimit}</span>
+            </div>
           </header>
 
-          <div class="content-stage ${state.shelfOpen ? "shelf-open" : ""}">
-            <div class="doc-body">
+          ${tempCount >= warehouse.tempLimit ? renderOrganizeNotice(tempCount) : ""}
+
+          <div class="content-wrap">
             <nav class="toc" aria-label="目录">
-              <h2>目录</h2>
-              ${warehouse.chapters.map((chapter, index) => `
-                <a class="${chapter[0] === activeTitle ? "active" : ""}" href="#${slug(chapter[0])}">
-                  <span>${index + 1}.</span>${chapter[0]}
-                </a>
+              <h3>目录</h3>
+              ${warehouse.reviewDocument.sections.map((section, index) => `
+                <button class="${index === 0 ? "active" : ""}" type="button">
+                  <span>${index + 1}. ${escapeHtml(section.heading)}</span>
+                  ${index === 0 ? "<b></b>" : ""}
+                </button>
               `).join("")}
             </nav>
-
             <article class="review-doc">
-              ${chapters.length ? chapters.slice(0, 2).map((chapter, index) => renderChapter(chapter, index)).join("") : renderEmpty()}
+              ${renderReviewDocument(warehouse)}
             </article>
-            </div>
-
-            <aside class="shelf-panel shelf-drawer" aria-label="松果架" aria-expanded="${state.shelfOpen}">
-              <button class="shelf-toggle" type="button" data-action="toggle-shelf" aria-label="${state.shelfOpen ? "收起松果架" : "展开松果架"}">
-                ${pineconeImg("tiny-pinecone")}
-                <span>松果架</span>
-              </button>
-              <div class="shelf-content">
-                <div class="shelf-illustration" aria-hidden="true">
-                  <span class="shelf-board board-top">${pineconeImg("shelf-pinecone shelf-pinecone-a")}${pineconeImg("shelf-pinecone shelf-pinecone-b")}</span>
-                  <span class="shelf-board board-mid">${pineconeImg("shelf-pinecone shelf-pinecone-c")}${pineconeImg("shelf-pinecone shelf-pinecone-d")}</span>
-                  <span class="shelf-board board-bottom">${pineconeImg("shelf-pinecone shelf-pinecone-e")}</span>
-                </div>
-                <h2>松果架</h2>
-                <p>分区与复盘文档章节一致。</p>
-                ${warehouse.chapters.map((chapter, index) => renderShelfSection(chapter, index)).join("")}
-              </div>
-            </aside>
           </div>
 
-          <footer class="bottom-toolbar toolbar-dock" aria-label="页面工具栏">
-            <div class="toolbar-status">
-              ${pineconeImg("tiny-pinecone")}
-              <span>当前松果仓：${warehouse.name}</span>
-            </div>
-            <div class="toolbar-actions">
-              <button class="toolbar-button toolbar-item primary" type="button" data-action="reorganize">
-                ${leafImg("toolbar-icon")}
-                <span><b>重新整理</b><small class="toolbar-meta">AI 重新梳理内容</small></span>
-              </button>
-              <button class="toolbar-button toolbar-item" type="button" data-action="edit-document">
-                ${bookImg("toolbar-icon")}
-                <span><b>编辑文档</b><small class="toolbar-meta">修改复盘文档内容</small></span>
-              </button>
-              <button class="toolbar-button toolbar-item" type="button" data-action="add-pinecone">
-                ${plusImg("toolbar-icon")}
-                <span><b>添加松果</b><small class="toolbar-meta">放入暂存栏</small></span>
-              </button>
-              <button class="toolbar-button toolbar-item icon-only" type="button" data-action="toggle-shelf" aria-label="切换松果架">
-                ${pineconeImg("toolbar-icon")}
-                <span><b>${state.shelfOpen ? "收起" : "松果架"}</b><small class="toolbar-meta">查看分区</small></span>
-              </button>
-            </div>
+          ${state.addOpen ? renderAddPanel(warehouse) : ""}
+          ${renderShelfDrawer(warehouse)}
+
+          <footer class="bottom-toolbar">
+            <button type="button" data-action="organize-existing"><span class="refresh-icon"></span><b>放进现有果架</b></button>
+            <button type="button" data-action="reorganize">${icons.leaf("toolbar-img")}<b>重新整理</b></button>
+            <button type="button" data-action="toggle-add">${icons.plus("toolbar-img add")}<b>添加松果</b></button>
+            <button type="button" data-action="toggle-shelf">${renderShelfIcon("toolbar-shelf-icon")}<b>松果架</b></button>
           </footer>
         </section>
       </main>
     </section>
+
+    ${state.referenceIds.length ? renderReferenceModal(warehouse) : ""}
   `;
 
   bindEvents();
+  renderToast();
 }
 
 function renderWarehouseCard(warehouse) {
-  const activeClass = warehouse.id === state.activeId ? "active" : "";
-  const tempPercent = Math.min(100, Math.round((warehouse.temp.current / warehouse.temp.limit) * 100));
+  const active = warehouse.id === state.activeWarehouseId;
   return `
-    <button class="warehouse-card tone-${warehouse.tone} ${activeClass}" type="button" data-warehouse="${warehouse.id}">
-      ${pineconeImg("card-pinecone")}
-      <span class="badge badge-${warehouse.badge}" aria-hidden="true"></span>
-      <strong>${warehouse.name}</strong>
-      <small>${pineconeImg("count-pinecone")} ${warehouse.count}</small>
-      <em>${warehouse.updated}</em>
-      <span class="temp-progress" aria-label="暂存栏 ${warehouse.temp.current}/${warehouse.temp.limit}">
-        <span>暂存栏 ${warehouse.temp.current}/${warehouse.temp.limit}</span>
-        <b style="width: ${tempPercent}%"></b>
+    <button class="warehouse-card ${active ? "active" : ""}" type="button" data-warehouse="${warehouse.id}">
+      ${renderWarehouseIcon()}
+      <span class="warehouse-copy">
+        <strong>${escapeHtml(warehouse.name)}</strong>
+        <small>${escapeHtml(warehouse.updatedAt)}</small>
       </span>
-      <i></i>
+      ${active ? '<i class="active-dot"></i>' : ""}
     </button>
   `;
 }
 
-function renderLedger(warehouse) {
+function renderWarehouseIcon() {
+  return asset("pinecone-warehouse-icon.png", "warehouse-icon");
+}
+
+function renderShelfIcon(className) {
+  return asset("pinecone-shelf-icon.png", className);
+}
+
+function renderOrganizeNotice(tempCount) {
   return `
-    <div class="ledger-strip" aria-label="果仓账簿">
-      <span><b>果仓账簿</b></span>
-      <span>${pineconeImg("count-pinecone")} ${warehouse.ledger.shelves} 个果架</span>
-      <span>${starImg("ledger-star")} ${warehouse.ledger.featured} 颗精选松果</span>
-      <span>${warehouse.ledger.mode}</span>
-      <time>${warehouse.ledger.lastOrganized}</time>
+    <div class="organize-notice">
+      <strong>${tempCount} 颗新松果攒好了，可以开始整理了。</strong>
+      <button type="button" data-action="organize-existing">放进现有果架</button>
+      <button type="button" data-action="reorganize">重新整理仓库</button>
+      <button type="button" data-action="dismiss-notice">稍后</button>
     </div>
   `;
 }
 
-function renderChapter(chapter, index) {
-  const [title, note, points] = chapter;
-  return `
-    <section class="chapter" id="${slug(title)}">
-      <h2>${index + 1}. ${title}${leafImg("chapter-leaf")}</h2>
-      <p>${note}</p>
-      <div class="fake-lines" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span>
+function renderReviewDocument(warehouse) {
+  const sections = getFilteredSections(warehouse);
+  if (!sections.length) {
+    return `
+      <div class="empty-doc">
+        ${icons.pinecone("empty-pine")}
+        <h3>还没有匹配的复盘内容</h3>
+        <p>换个关键词，或添加新的松果后再整理。</p>
       </div>
-      ${index === 0 ? `
-        <div class="key-box">
-          <h3>${starImg("star-icon")}<span>重点要点</span></h3>
-          <ul>${points.map((point) => `<li>${point}</li>`).join("")}</ul>
-        </div>
-        <div class="green-stitch" aria-hidden="true"></div>
-      ` : ""}
+    `;
+  }
+
+  return sections.map((section, index) => `
+    <section class="doc-section">
+      <h3>${index + 1}. ${escapeHtml(section.heading)} ${icons.leaf("section-leaf")}</h3>
+      <p>${escapeHtml(section.summary)}</p>
+      ${index === 0 ? renderKeyBox(section) : ""}
+      <div class="soft-lines"><i></i><i></i><i></i></div>
     </section>
-  `;
+  `).join("");
 }
 
-function renderShelfSection(chapter, index) {
-  const [title, note, points] = chapter;
+function renderKeyBox(section) {
   return `
-    <section class="shelf-section">
-      <h3><span>${index + 1}. ${title}</span><em class="shelf-count">${points.length} 颗</em></h3>
-      <p>${note}</p>
-      <ul>${points.map((point) => `<li>${point}</li>`).join("")}</ul>
-    </section>
+    <div class="key-box">
+      <h4>${icons.star("key-star")} 重点要点</h4>
+      <ul>
+        ${section.bullets.map((bullet) => `
+          <li>
+            <span></span>
+            <button type="button" data-reference="${bullet.pineconeIds.join(",")}">
+              ${escapeHtml(bullet.text)}
+              <em>引用松果 ${bullet.pineconeIds.length} 颗</em>
+            </button>
+          </li>
+        `).join("")}
+      </ul>
+    </div>
   `;
 }
 
-function renderEmpty() {
-  return `<div class="empty-state">${pineconeImg("card-pinecone")}<h2>没有找到相关内容</h2><p>换一个关键词试试，松果还在仓库里。</p></div>`;
+function renderAddPanel(warehouse) {
+  const tempCount = warehouse.pinecones.filter((pinecone) => pinecone.status === "temp").length;
+  return `
+    <aside class="add-panel">
+      <div>
+        <h3>添加松果</h3>
+        <button type="button" data-action="toggle-add" aria-label="关闭">×</button>
+      </div>
+      <textarea data-input="pinecone" placeholder="粘贴一段经验、摘抄、灵感或聊天记录...">${escapeHtml(state.newPineconeText)}</textarea>
+      <p>添加后会先放入暂存栏。当前 ${tempCount}/${warehouse.tempLimit}。</p>
+      <button class="primary-action" type="button" data-action="add-pinecone">添加松果</button>
+    </aside>
+  `;
+}
+
+function renderShelfDrawer(warehouse) {
+  const grouped = warehouse.shelves.map((shelf) => ({
+    ...shelf,
+    pinecones: warehouse.pinecones.filter((pinecone) => pinecone.shelfId === shelf.id && pinecone.status === "shelved"),
+  }));
+
+  return `
+    <aside class="shelf-drawer ${state.shelfOpen ? "open" : ""}">
+      <button class="shelf-tab" type="button" data-action="toggle-shelf">
+        ${renderShelfIcon("drawer-shelf-icon")}
+        <span>松果架</span>
+      </button>
+      <div class="shelf-content">
+        <h3>松果架</h3>
+        <p>AI 先把松果放到合适的果架，再整理成复盘文档。</p>
+        ${grouped.map((shelf) => `
+          <section>
+            <strong>${escapeHtml(shelf.name)}</strong>
+            <small>${shelf.pinecones.length} 颗松果</small>
+            <p>${escapeHtml(shelf.description)}</p>
+          </section>
+        `).join("")}
+      </div>
+    </aside>
+  `;
+}
+
+function renderReferenceModal(warehouse) {
+  const references = warehouse.pinecones.filter((pinecone) => state.referenceIds.includes(pinecone.id));
+  return `
+    <div class="modal-backdrop" data-action="close-references">
+      <section class="reference-modal" role="dialog" aria-modal="true" aria-label="引用松果">
+        <header>
+          <h3>引用松果</h3>
+          <button type="button" data-action="close-references" aria-label="关闭">×</button>
+        </header>
+        <div class="reference-list">
+          ${references.map((pinecone) => `
+            <article>
+              <strong>${escapeHtml(pinecone.tags.join(" · ") || "原始松果")}</strong>
+              <p>${escapeHtml(pinecone.content)}</p>
+              <time>${escapeHtml(pinecone.createdAt)}</time>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+    </div>
+  `;
 }
 
 function bindEvents() {
-  app.querySelectorAll("[data-warehouse]").forEach((button) => {
+  document.querySelectorAll("[data-warehouse]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.activeId = button.dataset.warehouse;
+      state.activeWarehouseId = button.dataset.warehouse;
       state.query = "";
-      state.shelfOpen = false;
+      state.addOpen = false;
+      saveState();
       render();
     });
   });
 
-  const searchInput = app.querySelector("[data-input='search']");
-  searchInput.addEventListener("input", (event) => {
-    state.query = event.target.value;
-    render();
-    const nextInput = app.querySelector("[data-input='search']");
-    nextInput.focus();
-    nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+  document.querySelectorAll("[data-action]").forEach((element) => {
+    element.addEventListener("click", (event) => {
+      const action = element.dataset.action;
+      if (action === "toggle-add") {
+        state.addOpen = !state.addOpen;
+        render();
+      }
+      if (action === "toggle-shelf") {
+        state.shelfOpen = !state.shelfOpen;
+        render();
+      }
+      if (action === "add-pinecone") {
+        addPinecone();
+      }
+      if (action === "organize-existing") {
+        organizeWarehouse("existing");
+      }
+      if (action === "reorganize") {
+        organizeWarehouse("reorganize");
+      }
+      if (action === "create-warehouse") {
+        createWarehouse();
+      }
+      if (action === "focus-search") {
+        document.querySelector("#doc-search")?.focus();
+      }
+      if (action === "close-references") {
+        if (event.target === element || element.tagName === "BUTTON") {
+          state.referenceIds = [];
+          render();
+        }
+      }
+      if (action === "dismiss-notice") {
+        showToast("新松果会继续留在暂存栏。");
+      }
+    });
   });
 
-  app.querySelectorAll("[data-action]").forEach((button) => {
-    button.addEventListener("click", () => handleAction(button.dataset.action));
+  document.querySelectorAll("[data-reference]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.referenceIds = button.dataset.reference.split(",").filter(Boolean);
+      render();
+    });
+  });
+
+  document.querySelector("[data-input='search']")?.addEventListener("input", (event) => {
+    state.query = event.target.value;
+    render();
+  });
+
+  document.querySelector("[data-input='pinecone']")?.addEventListener("input", (event) => {
+    state.newPineconeText = event.target.value;
   });
 }
 
-function handleAction(action) {
-  if (action === "toggle-shelf") {
-    state.shelfOpen = !state.shelfOpen;
-    render();
+function addPinecone() {
+  const warehouse = getActiveWarehouse();
+  const content = state.newPineconeText.trim();
+  if (!content) {
+    showToast("先放入一段松果内容。");
     return;
   }
 
-  const messages = {
-    home: "已经在松鼠仓库首页。",
-    new: "这里会新建一个松果仓。",
-    "global-search": "这里会搜索全部松果仓。",
-    profile: "这里会打开账号设置。",
-    favorite: "这里会把当前文档标为精选。",
-    more: "这里会展开更多文档操作。",
-    reorganize: "这里会重新整理当前松果仓。",
-    "edit-document": "这里会进入复盘文档编辑状态。",
-    "add-pinecone": "这里会添加一颗新松果。",
-  };
+  warehouse.pinecones.unshift({
+    id: uid("pinecone"),
+    content,
+    status: "temp",
+    shelfId: null,
+    tags: [],
+    isFeatured: false,
+    createdAt: nowText().replace(" 更新", ""),
+  });
+  warehouse.updatedAt = nowText();
+  state.newPineconeText = "";
+  state.addOpen = false;
+  saveState();
 
-  showToast(messages[action] || "功能准备中。");
+  const tempCount = warehouse.pinecones.filter((pinecone) => pinecone.status === "temp").length;
+  showToast(`已放入暂存栏。当前 ${tempCount}/${warehouse.tempLimit}。`);
 }
 
-function getActiveWarehouse() {
-  return warehouses.find((warehouse) => warehouse.id === state.activeId) || warehouses[0];
+function createWarehouse() {
+  const name = prompt("新建松果仓", "新的松果仓");
+  if (!name?.trim()) return;
+
+  const id = uid("warehouse");
+  state.warehouses.unshift({
+    id,
+    name: name.trim(),
+    updatedAt: nowText(),
+    tempLimit: 5,
+    pinecones: [],
+    shelves: [
+      { id: "ideas", name: "待整理线索", description: "新松果整理后会先放到这里。" },
+    ],
+    reviewDocument: buildReviewDocument(name.trim(), [
+      {
+        shelfId: "ideas",
+        heading: "先存下零散松果",
+        summary: "这个仓库还在积累材料，添加松果后可以让 AI 开始整理。",
+        bullets: [],
+      },
+    ]),
+  });
+  state.activeWarehouseId = id;
+  saveState();
+  showToast("松果仓已创建。");
 }
 
-function getFilteredChapters(chapters) {
-  const query = normalize(state.query);
-  if (!query) return chapters;
+async function organizeWarehouse(mode = "existing") {
+  const warehouse = getActiveWarehouse();
+  const tempCount = warehouse.pinecones.filter((pinecone) => pinecone.status === "temp").length;
+  if (tempCount === 0 && mode === "existing") {
+    showToast("暂存栏里还没有新松果。");
+    return;
+  }
 
-  return chapters.filter(([title, note, points]) => {
-    return normalize([title, note, ...points].join("")).includes(query);
+  const result = USE_API_ORGANIZER
+    ? await organizeWarehouseWithApi(warehouse, mode)
+    : organizeWarehouseWithMock(warehouse, mode);
+
+  Object.assign(warehouse, result);
+  warehouse.updatedAt = nowText();
+  saveState();
+  showToast(mode === "reorganize" ? "已重新整理仓库，复盘文档已更新。" : `${tempCount} 颗松果已放进现有果架。`);
+}
+
+async function organizeWarehouseWithApi(_warehouse, _mode) {
+  throw new Error("API organizer is reserved. Replace this function with an OpenAI API call.");
+}
+
+function organizeWarehouseWithMock(warehouse, mode) {
+  const working = structuredClone(warehouse);
+  const targetPinecones = mode === "reorganize"
+    ? working.pinecones
+    : working.pinecones.filter((pinecone) => pinecone.status === "temp");
+
+  ensureDefaultShelves(working);
+
+  targetPinecones.forEach((pinecone) => {
+    const shelfId = chooseShelfId(pinecone.content);
+    pinecone.shelfId = shelfId;
+    pinecone.status = "shelved";
+    pinecone.tags = makeTags(pinecone.content);
+  });
+
+  working.reviewDocument = buildReviewFromShelves(working);
+  return working;
+}
+
+function ensureDefaultShelves(warehouse) {
+  const defaults = [
+    { id: "resume", name: "简历准备", description: "关于简历内容选择、表达和优化的建议。" },
+    { id: "before", name: "面试前准备", description: "关于岗位、公司、自我介绍和作品准备。" },
+    { id: "performance", name: "面试中的表现", description: "关于现场回答、沟通节奏和信任感。" },
+    { id: "qa", name: "常见问题回答思路", description: "关于高频问题、反问和答案结构。" },
+    { id: "follow", name: "面试后的跟进", description: "关于记录、复盘和下一轮改进。" },
+    { id: "other", name: "其他经验补充", description: "暂时无法归入前面章节的经验。" },
+  ];
+
+  defaults.forEach((shelf) => {
+    if (!warehouse.shelves.some((current) => current.id === shelf.id)) {
+      warehouse.shelves.push(shelf);
+    }
   });
 }
 
-function normalize(value) {
-  return String(value).toLowerCase().replace(/\s+/g, "");
+function chooseShelfId(content) {
+  if (/简历|项目|经历|岗位|JD/.test(content)) return "resume";
+  if (/准备|公司|作品|自我介绍|提前/.test(content)) return "before";
+  if (/现场|表达|回答|沟通|不会/.test(content)) return "performance";
+  if (/问题|反问|规划|失败|离职/.test(content)) return "qa";
+  if (/面试后|记录|复盘|下一轮|跟进/.test(content)) return "follow";
+  return "other";
 }
 
-function slug(value) {
-  return encodeURIComponent(value.replace(/\s+/g, "-"));
+function makeTags(content) {
+  const tags = [];
+  if (/必须|重点|应该|要/.test(content)) tags.push("重点");
+  if (/准备|记录|整理|写清楚/.test(content)) tags.push("可执行");
+  if (/反复|常见|高频/.test(content)) tags.push("高频");
+  return tags.length ? tags : ["补充"];
+}
+
+function buildReviewFromShelves(warehouse) {
+  const sections = warehouse.shelves.map((shelf) => {
+    const pinecones = warehouse.pinecones.filter((pinecone) => pinecone.status === "shelved" && pinecone.shelfId === shelf.id);
+    if (!pinecones.length) return null;
+    return {
+      shelfId: shelf.id,
+      heading: shelf.name,
+      summary: shelf.description,
+      bullets: pinecones.slice(0, 4).map((pinecone) => ({
+        text: summarizePinecone(pinecone.content),
+        pineconeIds: [pinecone.id],
+      })),
+    };
+  }).filter(Boolean);
+
+  return buildReviewDocument(warehouse.name, sections.length ? sections : [{
+    shelfId: "other",
+    heading: "先积累更多松果",
+    summary: "当前内容还不多，可以继续添加材料再整理。",
+    bullets: [],
+  }]);
+}
+
+function buildReviewDocument(title, sections) {
+  return { title, sections };
+}
+
+function summarizePinecone(content) {
+  const clean = content.replace(/\s+/g, " ").trim();
+  return clean.length > 42 ? `${clean.slice(0, 42)}。` : clean;
+}
+
+function getFilteredSections(warehouse) {
+  const query = state.query.trim();
+  if (!query) return warehouse.reviewDocument.sections;
+  return warehouse.reviewDocument.sections.filter((section) =>
+    [section.heading, section.summary, ...section.bullets.map((bullet) => bullet.text)].some((text) => text.includes(query)),
+  );
+}
+
+function showToast(message) {
+  state.toast = message;
+  render();
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => {
+    state.toast = "";
+    renderToast();
+  }, 2200);
+}
+
+function renderToast() {
+  toast.textContent = state.toast;
+  toast.classList.toggle("show", Boolean(state.toast));
 }
 
 function escapeHtml(value) {
@@ -364,12 +694,4 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-let toastTimer;
-function showToast(message) {
-  clearTimeout(toastTimer);
-  toast.textContent = message;
-  toast.classList.add("show");
-  toastTimer = window.setTimeout(() => toast.classList.remove("show"), 1800);
 }
