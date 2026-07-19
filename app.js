@@ -407,7 +407,11 @@ function renderToolbar() {
       <footer class="bottom-toolbar${collapsed}" data-toolbar${positionStyle}>
         <button class="toolbar-orb" type="button" data-action="toggle-toolbar" data-drag-toolbar aria-label="展开工具栏">
           ${icons.squirrel("toolbar-orb-mascot")}
-          ${icons.plus("toolbar-orb-icon")}
+          <span class="toolbar-orb-toolstack" aria-hidden="true">
+            ${icons.book("toolbar-orb-tool-book")}
+            ${icons.plus("toolbar-orb-tool-plus")}
+            ${icons.leaf("toolbar-orb-tool-leaf")}
+          </span>
         </button>
       </footer>
     `;

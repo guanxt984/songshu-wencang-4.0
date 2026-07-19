@@ -41,6 +41,10 @@ const expectations = [
   ["crop offset control", "data-crop-input=\"offsetX\""],
   ["crop zoom control", "data-crop-input=\"zoom\""],
   ["toolbar drag target", "data-drag-toolbar"],
+  ["collapsed toolbar tool icon group", "toolbar-orb-toolstack"],
+  ["collapsed toolbar tool plus", "toolbar-orb-tool-plus"],
+  ["collapsed toolbar tool book", "toolbar-orb-tool-book"],
+  ["collapsed toolbar tool leaf", "toolbar-orb-tool-leaf"],
   ["toolbar save document copy", "保存文档"],
   ["toolbar full reorganize copy", "全部重新整理"],
   ["approved warehouse icon", "pinecone-warehouse-icon.png"],
@@ -73,6 +77,7 @@ const cssExpectations = [
   ["bottom toolbar", ".bottom-toolbar"],
   ["collapsed toolbar", ".bottom-toolbar.collapsed"],
   ["toolbar orb", ".toolbar-orb"],
+  ["toolbar orb tool stack", ".toolbar-orb-toolstack"],
   ["icon crop modal", ".icon-crop-modal"],
   ["editable document fields", ".editable-field"],
   ["add panel", ".add-panel"],
@@ -111,6 +116,7 @@ const forbidden = [
   ["css drawn collapsed toolbar mascot", ".toolbar-orb-mascot::before"],
   ["css drawn collapsed toolbar mascot face", ".toolbar-orb-mascot::after"],
   ["css drawn shelf tab pinecone", ".shelf-tab-pinecone {\n  position: relative;\n  width:"],
+  ["old single collapsed toolbar icon", "toolbar-orb-icon"],
   ["native warehouse name prompt", "prompt("],
   ["native warehouse delete confirmation", "confirm("],
   ["warehouse panel grass decoration", "panel-grass"],
@@ -173,6 +179,41 @@ const toolbarFailures = [];
 ["organize-existing", "toggle-shelf"].forEach((action) => {
   if (toolbarSource.includes(`data-action="${action}"`)) {
     toolbarFailures.push(`Forbidden toolbar action: ${action}`);
+  }
+});
+const expandedToolbarCssSource = cssSource.slice(
+  cssSource.indexOf(".bottom-toolbar {"),
+  cssSource.indexOf(".bottom-toolbar::before"),
+);
+const collapsedToolbarCssSource = cssSource.slice(
+  cssSource.indexOf(".bottom-toolbar.collapsed"),
+  cssSource.indexOf(".toolbar-orb {"),
+);
+const toolbarMascotRuleStart = cssSource.indexOf(".toolbar-mascot {", cssSource.indexOf(".toolbar-mascot,"));
+const toolbarMascotCssSource = cssSource.slice(
+  toolbarMascotRuleStart,
+  cssSource.indexOf(".toolbar-orb-mascot", toolbarMascotRuleStart),
+);
+const toolbarOrbToolStackCssSource = cssSource.slice(
+  cssSource.indexOf(".toolbar-orb-toolstack"),
+  cssSource.indexOf(".toolbar-mascot,"),
+);
+const collapsedToolbarSource = toolbarSource.slice(
+  toolbarSource.indexOf("if (state.toolbarCollapsed)"),
+  toolbarSource.indexOf("</footer>", toolbarSource.indexOf("if (state.toolbarCollapsed)")),
+);
+[
+  ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
+  ["Expanded mascot is not enlarged for an integrated perched pose", toolbarMascotCssSource, "width: 92px"],
+  ["Expanded mascot is not positioned into the toolbar edge", toolbarMascotCssSource, "top: -57px"],
+  ["Collapsed toolbar is not a circular prototype control", collapsedToolbarCssSource, "border-radius: 50%"],
+  ["Collapsed toolbar lacks the tool icon stack styling", toolbarOrbToolStackCssSource, ".toolbar-orb-toolstack"],
+  ["Collapsed toolbar stack does not render the plus PNG helper", collapsedToolbarSource, 'icons.plus("toolbar-orb-tool-plus")'],
+  ["Collapsed toolbar stack does not render the book PNG helper", collapsedToolbarSource, 'icons.book("toolbar-orb-tool-book")'],
+  ["Collapsed toolbar stack does not render the leaf PNG helper", collapsedToolbarSource, 'icons.leaf("toolbar-orb-tool-leaf")'],
+].forEach(([failure, source, needle]) => {
+  if (!source.includes(needle)) {
+    toolbarFailures.push(failure);
   }
 });
 
