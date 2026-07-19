@@ -63,3 +63,11 @@
 - 刷新或重新加载状态后保留创建、删除和排序结果。
 
 浏览器验收覆盖：拖拽反馈清晰、删除按钮不会触发拖拽、确认弹窗文案准确、空状态可继续新建仓库，并检查控制台无错误。
+
+## Layout supplement: consistent warehouse card size
+
+User-approved supplement on 2026-07-19: each warehouse card should keep a
+consistent size. The warehouse list should align cards from the start and may
+leave blank space in the panel; cards must not stretch vertically to fill the
+available list area. On narrower layouts, cards should also keep a consistent
+track width rather than expanding to fill the whole horizontal region.

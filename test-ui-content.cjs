@@ -241,6 +241,30 @@ const moveThreshold = Number(appSource.match(/const TOUCH_DRAG_MOVE_THRESHOLD = 
 if (!Number.isFinite(moveThreshold) || moveThreshold < 4 || moveThreshold > 12) {
   warehouseDragFailures.push("Touch drag movement threshold is not small and bounded");
 }
+const warehouseListCss = cssSource.slice(
+  cssSource.indexOf(".warehouse-list {"),
+  cssSource.indexOf(".warehouse-card {"),
+);
+if (!warehouseListCss.includes("grid-auto-rows: 132px")) {
+  warehouseDragFailures.push("Warehouse list does not keep every card row at a fixed height");
+}
+if (!warehouseListCss.includes("align-content: start")) {
+  warehouseDragFailures.push("Warehouse list still allows rows to stretch into leftover space");
+}
+const warehouseCardBaseCss = cssSource.slice(
+  cssSource.indexOf(".warehouse-card {"),
+  cssSource.indexOf('.warehouse-card[draggable="true"]'),
+);
+if (!warehouseCardBaseCss.includes("height: 132px")) {
+  warehouseDragFailures.push("Warehouse cards do not declare the shared fixed height");
+}
+const responsiveWarehouseListCss = cssSource.slice(
+  cssSource.indexOf("@media (max-width: 1220px)"),
+  cssSource.indexOf("@media (max-width: 720px)"),
+);
+if (!responsiveWarehouseListCss.includes("grid-template-columns: repeat(3, 260px)")) {
+  warehouseDragFailures.push("Responsive warehouse list does not keep fixed-width card columns");
+}
 
 if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || presentForbidden.length > 0 || missingAssets.length > 0 || toolbarFailures.length > 0 || emptyWarehouseFailures.length > 0 || warehouseDialogFailures.length > 0 || warehouseDragFailures.length > 0) {
   if (missing.length > 0) {

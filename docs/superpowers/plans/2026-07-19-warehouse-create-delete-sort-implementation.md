@@ -524,3 +524,11 @@ Expected: PASS，0 failures。
 git add -- app.js styles.css warehouse-management.test.mjs test-ui-content.cjs
 git commit -m "fix: address warehouse management acceptance issues"
 ```
+
+### Task 4 supplement: consistent card sizing
+
+User-approved supplement on 2026-07-19: warehouse cards keep one consistent
+height and the list is not forced to stretch cards into leftover panel space.
+Add CSS source contracts first, verify they fail before the CSS change, then set
+fixed list row height, top alignment, fixed card height, and fixed responsive
+warehouse columns. Verify with `npm.cmd run check` and browser DOM measurement.

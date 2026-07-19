@@ -205,6 +205,8 @@ img {
 
 .warehouse-list {
   display: grid;
+  grid-auto-rows: 132px;
+  align-content: start;
   gap: 16px;
   height: calc(100vh - 246px);
   overflow-y: auto;
@@ -219,6 +221,7 @@ img {
   display: grid;
   grid-template-columns: 78px minmax(0, 1fr) 10px;
   align-items: center;
+  height: 132px;
   min-height: 132px;
   padding: 13px 17px;
   text-align: left;
@@ -1465,7 +1468,7 @@ img {
   }
 
   .warehouse-list {
-    grid-template-columns: repeat(3, minmax(240px, 1fr));
+    grid-template-columns: repeat(3, 260px);
     height: auto;
     overflow-x: auto;
   }
