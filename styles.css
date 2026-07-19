@@ -229,7 +229,7 @@ img {
 
 .warehouse-card[draggable="true"] {
   cursor: grab;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
 }
 
 .warehouse-card.dragging {

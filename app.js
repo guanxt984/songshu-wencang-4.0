@@ -760,7 +760,13 @@ function bindEvents() {
 function bindWarehouseDragEvents() {
   document.querySelectorAll("[data-warehouse-card]").forEach((card) => {
     card.addEventListener("pointerdown", (event) => {
-      if (touchWarehouseDrag) return;
+      if (touchWarehouseDrag) {
+        if (event.pointerType === "touch") {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
       warehouseDragStartedFromButton = Boolean(event.target.closest("button"));
       if (warehouseDragStartedFromButton || event.pointerType !== "touch") return;
 
@@ -778,7 +784,7 @@ function bindWarehouseDragEvents() {
           activateTouchWarehouseDrag(card, event.pointerId);
         }, TOUCH_DRAG_HOLD_MS),
       };
-    });
+    }, { capture: true });
 
     card.addEventListener("dragstart", (event) => {
       if (warehouseDragStartedFromButton) {
@@ -826,6 +832,12 @@ function bindWarehouseDragEvents() {
       finishTouchWarehouseDrag(card, event, false);
     });
 
+    card.addEventListener("lostpointercapture", (event) => {
+      if (touchWarehouseDrag?.active && event.pointerId === touchWarehouseDrag.pointerId) {
+        clearWarehouseDragState();
+      }
+    });
+
     card.addEventListener("dragover", (event) => {
       if (!draggedWarehouseId || draggedWarehouseId === card.dataset.warehouseCard) return;
       event.preventDefault();
@@ -851,7 +863,11 @@ function bindWarehouseDragEvents() {
 }
 
 function activateTouchWarehouseDrag(card, pointerId) {
-  if (!touchWarehouseDrag || touchWarehouseDrag.pointerId !== pointerId || !card.isConnected) return;
+  if (!touchWarehouseDrag || touchWarehouseDrag.pointerId !== pointerId) return;
+  if (!card.isConnected) {
+    clearWarehouseDragState();
+    return;
+  }
 
   touchWarehouseDrag.active = true;
   touchWarehouseDrag.activationTimer = 0;
@@ -893,34 +909,44 @@ function runWarehouseAutoScroll() {
 
   const { clientX, clientY } = touchWarehouseDrag;
   const warehouseList = document.querySelector(".warehouse-list");
-  let didScroll = false;
+  let didScrollX = false;
+  let didScrollY = false;
 
   if (warehouseList) {
     const rect = warehouseList.getBoundingClientRect();
-    const delta = getWarehouseAutoScrollDelta(clientY, rect.top, rect.bottom);
-    if (delta) {
+    const deltaX = getWarehouseAutoScrollDelta(clientX, rect.left, rect.right);
+    const deltaY = getWarehouseAutoScrollDelta(clientY, rect.top, rect.bottom);
+    if (deltaX) {
+      const previousScrollLeft = warehouseList.scrollLeft;
+      warehouseList.scrollLeft += deltaX;
+      didScrollX = warehouseList.scrollLeft !== previousScrollLeft;
+    }
+    if (deltaY) {
       const previousScrollTop = warehouseList.scrollTop;
-      warehouseList.scrollTop += delta;
-      didScroll = warehouseList.scrollTop !== previousScrollTop;
+      warehouseList.scrollTop += deltaY;
+      didScrollY = warehouseList.scrollTop !== previousScrollTop;
     }
   }
 
-  if (!didScroll) {
-    const delta = getWarehouseAutoScrollDelta(clientY, 0, window.innerHeight);
-    if (delta) {
+  if (!didScrollX || !didScrollY) {
+    const deltaX = didScrollX ? 0 : getWarehouseAutoScrollDelta(clientX, 0, window.innerWidth);
+    const deltaY = didScrollY ? 0 : getWarehouseAutoScrollDelta(clientY, 0, window.innerHeight);
+    if (deltaX || deltaY) {
+      const previousScrollX = window.scrollX;
       const previousScrollY = window.scrollY;
-      window.scrollBy(0, delta);
-      didScroll = window.scrollY !== previousScrollY;
+      window.scrollBy(deltaX, deltaY);
+      didScrollX = didScrollX || window.scrollX !== previousScrollX;
+      didScrollY = didScrollY || window.scrollY !== previousScrollY;
     }
   }
 
   updateTouchWarehouseDropTarget(clientX, clientY);
-  if (didScroll) startWarehouseAutoScroll();
+  if (didScrollX || didScrollY) startWarehouseAutoScroll();
 }
 
-function getWarehouseAutoScrollDelta(clientY, top, bottom) {
-  if (clientY < top + WAREHOUSE_AUTO_SCROLL_EDGE) return -WAREHOUSE_AUTO_SCROLL_SPEED;
-  if (clientY > bottom - WAREHOUSE_AUTO_SCROLL_EDGE) return WAREHOUSE_AUTO_SCROLL_SPEED;
+function getWarehouseAutoScrollDelta(coordinate, start, end) {
+  if (coordinate < start + WAREHOUSE_AUTO_SCROLL_EDGE) return -WAREHOUSE_AUTO_SCROLL_SPEED;
+  if (coordinate > end - WAREHOUSE_AUTO_SCROLL_EDGE) return WAREHOUSE_AUTO_SCROLL_SPEED;
   return 0;
 }
 

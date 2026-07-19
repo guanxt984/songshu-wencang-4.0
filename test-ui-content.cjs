@@ -160,13 +160,17 @@ const warehouseDragFailures = [];
   ["Touch dragging is limited to touch pointers", 'event.pointerType !== "touch"'],
   ["Touch dragging waits for long-press activation", "activateTouchWarehouseDrag"],
   ["Touch dragging cancels an armed moving pointer", "TOUCH_DRAG_MOVE_THRESHOLD"],
-  ["Touch dragging rejects a second pointer", "if (touchWarehouseDrag) return;"],
+  ["Touch dragging rejects a second pointer", "if (touchWarehouseDrag)"],
   ["Touch edge scrolling uses animation frames", "requestAnimationFrame"],
   ["Touch edge scrolling targets the warehouse list", 'document.querySelector(".warehouse-list")'],
   ["Touch edge scrolling includes the viewport edge", "window.innerHeight"],
   ["Touch edge scrolling refreshes drop placement", "updateTouchWarehouseDropTarget"],
   ["Touch edge scrolling is cancelled during cleanup", "cancelAnimationFrame"],
   ["Active touch dragging suppresses browser panning", "preventActiveWarehouseTouchScroll"],
+  ["Touch edge scrolling uses horizontal list offsets", "warehouseList.scrollLeft"],
+  ["Touch edge scrolling uses horizontal bounds", "rect.left"],
+  ["Touch edge scrolling includes horizontal viewport fallback", "window.scrollX"],
+  ["Touch dragging cleans up lost pointer capture", 'card.addEventListener("lostpointercapture"'],
 ].forEach(([failure, needle]) => {
   if (!warehouseDragSource.includes(needle)) {
     warehouseDragFailures.push(failure);
@@ -178,12 +182,26 @@ if (warehouseDragSource.includes('if (event.target.closest("button"))')) {
 if (!appSource.includes('document.addEventListener("touchmove", preventActiveWarehouseTouchScroll, { passive: false });')) {
   warehouseDragFailures.push("Active touch drag does not install a non-passive scroll prevention hook");
 }
+const pointerDownSource = warehouseDragSource.slice(
+  warehouseDragSource.indexOf('card.addEventListener("pointerdown"'),
+  warehouseDragSource.indexOf('card.addEventListener("dragstart"'),
+);
+if (!pointerDownSource.includes("event.preventDefault();") || !pointerDownSource.includes("event.stopPropagation();") || !pointerDownSource.includes("{ capture: true }")) {
+  warehouseDragFailures.push("Second touch is not suppressed before nested button activation");
+}
+const touchActivationSource = warehouseDragSource.slice(
+  warehouseDragSource.indexOf("function activateTouchWarehouseDrag("),
+  warehouseDragSource.indexOf("function preventActiveWarehouseTouchScroll("),
+);
+if (!touchActivationSource.includes("if (!card.isConnected)") || !touchActivationSource.includes("clearWarehouseDragState();")) {
+  warehouseDragFailures.push("Disconnected touch activation does not fully clear gesture state");
+}
 const warehouseCardCss = cssSource.slice(
   cssSource.indexOf('.warehouse-card[draggable="true"]'),
   cssSource.indexOf(".warehouse-icon-button,"),
 );
-if (!warehouseCardCss.includes("touch-action: pan-y")) {
-  warehouseDragFailures.push("Warehouse cards do not preserve ordinary vertical touch scrolling");
+if (!warehouseCardCss.includes("touch-action: auto") && !warehouseCardCss.includes("touch-action: pan-x pan-y")) {
+  warehouseDragFailures.push("Warehouse cards do not preserve horizontal and vertical touch scrolling");
 }
 if (warehouseCardCss.includes("touch-action: none")) {
   warehouseDragFailures.push("Warehouse cards still block all native touch scrolling");
