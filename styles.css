@@ -344,8 +344,9 @@ img {
 }
 
 .document-card {
+  position: relative;
   height: 100%;
-  padding: 34px 40px 86px;
+  padding: 34px 40px 132px;
   overflow: hidden;
 }
 
@@ -353,7 +354,7 @@ img {
 .content-wrap,
 .add-panel,
 .shelf-drawer,
-.bottom-toolbar {
+.document-toolbar-tab {
   position: relative;
   z-index: 1;
 }
@@ -1043,14 +1044,22 @@ img {
   background: rgba(237, 248, 213, 0.9);
 }
 
+.document-toolbar-tab {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  display: flex;
+  justify-content: center;
+  padding-top: 56px;
+  pointer-events: none;
+}
+
 .bottom-toolbar {
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  z-index: 20;
+  position: relative;
   display: grid;
-  grid-template-columns: 42px repeat(3, minmax(132px, 1fr)) 42px;
-  width: min(680px, calc(100vw - 56px));
+  grid-template-columns: repeat(3, minmax(132px, 1fr)) 42px;
+  width: min(640px, calc(100% - 56px));
   min-height: 66px;
   padding-top: 12px;
   overflow: visible;
@@ -1061,8 +1070,7 @@ img {
   box-shadow:
     0 12px 24px rgba(91, 52, 18, 0.14),
     inset 0 0 0 1px rgba(255, 255, 255, 0.68);
-  transform: translateX(-50%);
-  touch-action: none;
+  pointer-events: auto;
 }
 
 .bottom-toolbar::before {
@@ -1092,17 +1100,14 @@ img {
 }
 
 .bottom-toolbar.collapsed {
-  left: auto;
-  right: 28px;
-  bottom: 28px;
   display: block;
+  margin-left: auto;
   width: 82px;
   min-height: 82px;
   border: 0;
   border-radius: 50%;
   background: transparent;
   box-shadow: none;
-  transform: none;
 }
 
 .toolbar-orb {
@@ -1174,21 +1179,9 @@ img {
   height: 52px;
 }
 
-.toolbar-drag-handle,
 .toolbar-collapse {
   min-width: 42px;
   padding: 0;
-}
-
-.toolbar-drag-handle {
-  cursor: grab;
-}
-
-.toolbar-drag-handle span {
-  width: 4px;
-  height: 24px;
-  border-radius: 999px;
-  background: rgba(143, 80, 23, 0.32);
 }
 
 .toolbar-collapse {
@@ -1544,7 +1537,7 @@ img {
   }
 
   .bottom-toolbar {
-    grid-template-columns: 36px repeat(3, minmax(82px, 1fr)) 36px;
+    grid-template-columns: repeat(3, minmax(82px, 1fr)) 36px;
     width: calc(100% - 24px);
     min-height: 72px;
   }

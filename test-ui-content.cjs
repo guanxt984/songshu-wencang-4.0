@@ -33,14 +33,13 @@ const expectations = [
   ["custom warehouse icon handler", "openIconPicker"],
   ["icon crop save handler", "saveWarehouseIcon"],
   ["toolbar collapse handler", "toggleToolbar"],
-  ["toolbar drag handler", "startToolbarDrag"],
   ["document editing handler", "toggleDocumentEdit"],
   ["document save handler", "saveDocumentEdits"],
   ["warehouse icon double click target", "data-icon-target"],
   ["warehouse icon file input", "warehouse-icon-file"],
   ["crop offset control", "data-crop-input=\"offsetX\""],
   ["crop zoom control", "data-crop-input=\"zoom\""],
-  ["toolbar drag target", "data-drag-toolbar"],
+  ["document toolbar tab", "document-toolbar-tab"],
   ["collapsed toolbar tool icon group", "toolbar-orb-toolstack"],
   ["collapsed toolbar tool plus", "toolbar-orb-tool-plus"],
   ["collapsed toolbar tool book", "toolbar-orb-tool-book"],
@@ -76,6 +75,7 @@ const cssExpectations = [
   ["left panel", ".warehouse-panel"],
   ["bottom toolbar", ".bottom-toolbar"],
   ["collapsed toolbar", ".bottom-toolbar.collapsed"],
+  ["document toolbar tab", ".document-toolbar-tab"],
   ["toolbar orb", ".toolbar-orb"],
   ["toolbar orb tool stack", ".toolbar-orb-toolstack"],
   ["icon crop modal", ".icon-crop-modal"],
@@ -117,6 +117,8 @@ const forbidden = [
   ["css drawn collapsed toolbar mascot face", ".toolbar-orb-mascot::after"],
   ["css drawn shelf tab pinecone", ".shelf-tab-pinecone {\n  position: relative;\n  width:"],
   ["old single collapsed toolbar icon", "toolbar-orb-icon"],
+  ["floating toolbar drag handle", "toolbar-drag-handle"],
+  ["floating toolbar drag target", "data-drag-toolbar"],
   ["native warehouse name prompt", "prompt("],
   ["native warehouse delete confirmation", "confirm("],
   ["warehouse panel grass decoration", "panel-grass"],
@@ -181,10 +183,16 @@ const toolbarFailures = [];
     toolbarFailures.push(`Forbidden toolbar action: ${action}`);
   }
 });
+if (toolbarSource.includes("toolbarPosition")) {
+  toolbarFailures.push("Toolbar still renders persisted floating position");
+}
 const expandedToolbarCssSource = cssSource.slice(
   cssSource.indexOf(".bottom-toolbar {"),
   cssSource.indexOf(".bottom-toolbar::before"),
 );
+if (expandedToolbarCssSource.includes("position: fixed")) {
+  toolbarFailures.push("Toolbar is still fixed to the viewport instead of the document area");
+}
 const collapsedToolbarCssSource = cssSource.slice(
   cssSource.indexOf(".bottom-toolbar.collapsed"),
   cssSource.indexOf(".toolbar-orb {"),
@@ -203,6 +211,7 @@ const collapsedToolbarSource = toolbarSource.slice(
   toolbarSource.indexOf("</footer>", toolbarSource.indexOf("if (state.toolbarCollapsed)")),
 );
 [
+  ["Toolbar does not sit in the document tab container", expandedToolbarCssSource, "position: relative"],
   ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
   ["Expanded mascot is not enlarged for an integrated perched pose", toolbarMascotCssSource, "width: 92px"],
   ["Expanded mascot is not positioned into the toolbar edge", toolbarMascotCssSource, "top: -57px"],

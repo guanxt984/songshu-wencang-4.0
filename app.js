@@ -44,7 +44,6 @@ const initialState = {
   iconCrop: null,
   warehouseDialog: null,
   toolbarCollapsed: false,
-  toolbarPosition: null,
   toast: "",
   warehouses: [
     {
@@ -158,8 +157,6 @@ const initialState = {
 let state = loadState();
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
-let toolbarDrag = null;
-let suppressToolbarClick = false;
 let draggedWarehouseId = "";
 let warehouseDragStartedFromButton = false;
 let touchWarehouseDrag = null;
@@ -397,35 +394,35 @@ function renderShelfIcon(className) {
 }
 
 function renderToolbar() {
-  const positionStyle = state.toolbarPosition
-    ? ` style="left:${state.toolbarPosition.x}px; top:${state.toolbarPosition.y}px; right:auto; bottom:auto; transform:none;"`
-    : "";
   const collapsed = state.toolbarCollapsed ? " collapsed" : "";
 
   if (state.toolbarCollapsed) {
     return `
-      <footer class="bottom-toolbar${collapsed}" data-toolbar${positionStyle}>
-        <button class="toolbar-orb" type="button" data-action="toggle-toolbar" data-drag-toolbar aria-label="展开工具栏">
+      <div class="document-toolbar-tab">
+        <footer class="bottom-toolbar${collapsed}" data-toolbar>
+          <button class="toolbar-orb" type="button" data-action="toggle-toolbar" aria-label="展开工具栏">
           ${icons.squirrel("toolbar-orb-mascot")}
           <span class="toolbar-orb-toolstack" aria-hidden="true">
             ${icons.book("toolbar-orb-tool-book")}
             ${icons.plus("toolbar-orb-tool-plus")}
             ${icons.leaf("toolbar-orb-tool-leaf")}
           </span>
-        </button>
-      </footer>
+          </button>
+        </footer>
+      </div>
     `;
   }
 
   return `
-    <footer class="bottom-toolbar${collapsed}" data-toolbar${positionStyle}>
-      ${icons.squirrel("toolbar-mascot")}
-      <button class="toolbar-drag-handle" type="button" data-drag-toolbar aria-label="拖拽工具栏"><span></span><span></span></button>
-      <button type="button" data-action="toggle-add">${icons.plus("toolbar-img add")}<b>添加松果</b></button>
-      <button type="button" data-action="toggle-document-edit">${icons.book("toolbar-img")}<b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
-      <button type="button" data-action="reorganize">${icons.leaf("toolbar-img")}<b>全部重新整理</b></button>
-      <button class="toolbar-collapse" type="button" data-action="toggle-toolbar" aria-label="折叠工具栏">−</button>
-    </footer>
+    <div class="document-toolbar-tab">
+      <footer class="bottom-toolbar${collapsed}" data-toolbar>
+        ${icons.squirrel("toolbar-mascot")}
+        <button type="button" data-action="toggle-add">${icons.plus("toolbar-img add")}<b>添加松果</b></button>
+        <button type="button" data-action="toggle-document-edit">${icons.book("toolbar-img")}<b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
+        <button type="button" data-action="reorganize">${icons.leaf("toolbar-img")}<b>全部重新整理</b></button>
+        <button class="toolbar-collapse" type="button" data-action="toggle-toolbar" aria-label="折叠工具栏">−</button>
+      </footer>
+    </div>
   `;
 }
 
@@ -687,17 +684,9 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-drag-toolbar]").forEach((handle) => {
-    handle.addEventListener("pointerdown", startToolbarDrag);
-  });
-
   document.querySelectorAll("[data-action]").forEach((element) => {
     element.addEventListener("click", (event) => {
       const action = element.dataset.action;
-      if (action === "toggle-toolbar" && suppressToolbarClick) {
-        suppressToolbarClick = false;
-        return;
-      }
       if (action === "toggle-add") {
         state.addOpen = !state.addOpen;
         state.editMode = false;
@@ -1135,52 +1124,6 @@ function toggleToolbar() {
   render();
 }
 
-function startToolbarDrag(event) {
-  if (event.button !== 0) return;
-  const toolbar = event.currentTarget.closest("[data-toolbar]");
-  if (!toolbar) return;
-  const rect = toolbar.getBoundingClientRect();
-  toolbarDrag = {
-    pointerId: event.pointerId,
-    startX: event.clientX,
-    startY: event.clientY,
-    offsetX: event.clientX - rect.left,
-    offsetY: event.clientY - rect.top,
-    moved: false,
-  };
-  state.toolbarPosition = { x: Math.round(rect.left), y: Math.round(rect.top) };
-  event.currentTarget.setPointerCapture?.(event.pointerId);
-  document.addEventListener("pointermove", moveToolbar);
-  document.addEventListener("pointerup", stopToolbarDrag, { once: true });
-}
-
-function moveToolbar(event) {
-  if (!toolbarDrag) return;
-  const dx = event.clientX - toolbarDrag.startX;
-  const dy = event.clientY - toolbarDrag.startY;
-  if (Math.hypot(dx, dy) > 4) toolbarDrag.moved = true;
-  const toolbar = document.querySelector("[data-toolbar]");
-  const width = toolbar?.offsetWidth || 72;
-  const height = toolbar?.offsetHeight || 72;
-  const x = clamp(event.clientX - toolbarDrag.offsetX, 8, window.innerWidth - width - 8);
-  const y = clamp(event.clientY - toolbarDrag.offsetY, 8, window.innerHeight - height - 8);
-  state.toolbarPosition = { x: Math.round(x), y: Math.round(y) };
-  if (toolbar) {
-    toolbar.style.left = `${state.toolbarPosition.x}px`;
-    toolbar.style.top = `${state.toolbarPosition.y}px`;
-    toolbar.style.right = "auto";
-    toolbar.style.bottom = "auto";
-    toolbar.style.transform = "none";
-  }
-}
-
-function stopToolbarDrag() {
-  document.removeEventListener("pointermove", moveToolbar);
-  if (toolbarDrag?.moved) suppressToolbarClick = true;
-  toolbarDrag = null;
-  saveState();
-}
-
 function toggleDocumentEdit() {
   if (state.editMode) {
     saveDocumentEdits();
@@ -1568,8 +1511,4 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
 }
