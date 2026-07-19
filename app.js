@@ -156,6 +156,8 @@ const toast = document.querySelector("#toast");
 let toolbarDrag = null;
 let suppressToolbarClick = false;
 let draggedWarehouseId = "";
+let warehouseDragStartedFromButton = false;
+let touchWarehouseDrag = null;
 
 render();
 
@@ -751,8 +753,28 @@ function bindEvents() {
 
 function bindWarehouseDragEvents() {
   document.querySelectorAll("[data-warehouse-card]").forEach((card) => {
+    card.addEventListener("pointerdown", (event) => {
+      warehouseDragStartedFromButton = Boolean(event.target.closest("button"));
+      if (warehouseDragStartedFromButton || event.pointerType !== "touch") return;
+
+      touchWarehouseDrag = {
+        pointerId: event.pointerId,
+        sourceId: card.dataset.warehouseCard,
+        targetId: "",
+        placement: "before",
+      };
+      draggedWarehouseId = card.dataset.warehouseCard;
+      card.classList.add("dragging");
+      card.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+
     card.addEventListener("dragstart", (event) => {
-      if (event.target.closest("button")) {
+      if (warehouseDragStartedFromButton) {
+        event.preventDefault();
+        return;
+      }
+      if (touchWarehouseDrag) {
         event.preventDefault();
         return;
       }
@@ -760,6 +782,31 @@ function bindWarehouseDragEvents() {
       card.classList.add("dragging");
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", draggedWarehouseId);
+    });
+
+    card.addEventListener("pointermove", (event) => {
+      if (!touchWarehouseDrag || event.pointerId !== touchWarehouseDrag.pointerId || event.pointerType !== "touch") return;
+      event.preventDefault();
+      clearWarehouseDropIndicators();
+
+      const targetCard = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-warehouse-card]");
+      touchWarehouseDrag.targetId = "";
+      if (!targetCard || targetCard.dataset.warehouseCard === touchWarehouseDrag.sourceId) return;
+
+      const rect = targetCard.getBoundingClientRect();
+      touchWarehouseDrag.targetId = targetCard.dataset.warehouseCard;
+      touchWarehouseDrag.placement = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+      targetCard.classList.add(`drop-${touchWarehouseDrag.placement}`);
+    });
+
+    card.addEventListener("pointerup", (event) => {
+      warehouseDragStartedFromButton = false;
+      finishTouchWarehouseDrag(card, event, true);
+    });
+
+    card.addEventListener("pointercancel", (event) => {
+      warehouseDragStartedFromButton = false;
+      finishTouchWarehouseDrag(card, event, false);
     });
 
     card.addEventListener("dragover", (event) => {
@@ -786,6 +833,24 @@ function bindWarehouseDragEvents() {
   });
 }
 
+function finishTouchWarehouseDrag(card, event, shouldReorder) {
+  if (!touchWarehouseDrag || event.pointerId !== touchWarehouseDrag.pointerId || event.pointerType !== "touch") return;
+
+  const { sourceId, targetId, placement } = touchWarehouseDrag;
+  if (card.hasPointerCapture(event.pointerId)) {
+    card.releasePointerCapture(event.pointerId);
+  }
+  clearWarehouseDragState();
+
+  if (!shouldReorder || !targetId) return;
+  const next = reorderWarehouses(state.warehouses, sourceId, targetId, placement);
+  if (next !== state.warehouses) {
+    state.warehouses = next;
+    saveState();
+    render();
+  }
+}
+
 function clearWarehouseDropIndicators() {
   document.querySelectorAll(".drop-before, .drop-after").forEach((card) => {
     card.classList.remove("drop-before", "drop-after");
@@ -794,6 +859,8 @@ function clearWarehouseDropIndicators() {
 
 function clearWarehouseDragState() {
   draggedWarehouseId = "";
+  warehouseDragStartedFromButton = false;
+  touchWarehouseDrag = null;
   document.querySelectorAll(".warehouse-card").forEach((card) => {
     card.classList.remove("dragging", "drop-before", "drop-after");
   });

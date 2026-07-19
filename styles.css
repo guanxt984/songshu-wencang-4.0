@@ -227,7 +227,10 @@ img {
   background: rgba(255, 251, 240, 0.68);
 }
 
-.warehouse-card[draggable="true"] { cursor: grab; }
+.warehouse-card[draggable="true"] {
+  cursor: grab;
+  touch-action: none;
+}
 
 .warehouse-card.dragging {
   opacity: .48;

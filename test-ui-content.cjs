@@ -55,6 +55,8 @@ const expectations = [
   ["warehouse card draggable", "draggable=\"true\""],
   ["warehouse drag binder", "bindWarehouseDragEvents"],
   ["warehouse reorder helper", "reorderWarehouses"],
+  ["warehouse pointer initiation state", "warehouseDragStartedFromButton"],
+  ["warehouse touch drag state", "touchWarehouseDrag"],
   ["warehouse delete confirmation", "仓内松果和整理文档会一并删除"],
 ];
 
@@ -143,7 +145,36 @@ const toolbarFailures = [];
   }
 });
 
-if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || presentForbidden.length > 0 || missingAssets.length > 0 || toolbarFailures.length > 0 || emptyWarehouseFailures.length > 0) {
+const warehouseDragSource = appSource.slice(
+  appSource.indexOf("function bindWarehouseDragEvents()"),
+  appSource.indexOf("function openIconPicker("),
+);
+const warehouseDragFailures = [];
+[
+  ["Pointer down records button initiation", 'card.addEventListener("pointerdown"'],
+  ["Native drag checks recorded initiation", "if (warehouseDragStartedFromButton)"],
+  ["Touch dragging has a pointer move path", 'card.addEventListener("pointermove"'],
+  ["Touch dragging commits on pointer up", 'card.addEventListener("pointerup"'],
+  ["Touch dragging cancels on pointer cancel", 'card.addEventListener("pointercancel"'],
+  ["Touch dragging hit-tests the card under the pointer", "document.elementFromPoint"],
+  ["Touch dragging is limited to touch pointers", 'event.pointerType !== "touch"'],
+].forEach(([failure, needle]) => {
+  if (!warehouseDragSource.includes(needle)) {
+    warehouseDragFailures.push(failure);
+  }
+});
+if (warehouseDragSource.includes('if (event.target.closest("button"))')) {
+  warehouseDragFailures.push("Native drag still checks the retargeted dragstart target");
+}
+const warehouseCardCss = cssSource.slice(
+  cssSource.indexOf('.warehouse-card[draggable="true"]'),
+  cssSource.indexOf(".warehouse-icon-button,"),
+);
+if (!warehouseCardCss.includes("touch-action: none")) {
+  warehouseDragFailures.push("Warehouse cards do not reserve touch pointers for dragging");
+}
+
+if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || presentForbidden.length > 0 || missingAssets.length > 0 || toolbarFailures.length > 0 || emptyWarehouseFailures.length > 0 || warehouseDragFailures.length > 0) {
   if (missing.length > 0) {
     console.error("Missing app content:");
     for (const [label, needle] of missing) {
@@ -189,6 +220,13 @@ if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || pre
   if (emptyWarehouseFailures.length > 0) {
     console.error("Empty warehouse contract failures:");
     for (const failure of emptyWarehouseFailures) {
+      console.error(`- ${failure}`);
+    }
+  }
+
+  if (warehouseDragFailures.length > 0) {
+    console.error("Warehouse drag contract failures:");
+    for (const failure of warehouseDragFailures) {
       console.error(`- ${failure}`);
     }
   }
