@@ -3,6 +3,7 @@ const path = require("path");
 
 const appSource = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
 const cssSource = fs.readFileSync(path.join(__dirname, "styles.css"), "utf8");
+const indexSource = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 
 const expectations = [
   ["product title", "松鼠文仓"],
@@ -69,6 +70,10 @@ const cssExpectations = [
   ["warehouse empty state", ".warehouse-empty-state"],
 ];
 
+const htmlExpectations = [
+  ["module app script", '<script type="module" src="app.js"></script>'],
+];
+
 const forbidden = [
   ["old product title", "枝枝笔记"],
   ["old product logo asset", "squirrel-wencang-logo.png"],
@@ -103,8 +108,18 @@ const requiredAssets = [
 
 const missing = expectations.filter(([, needle]) => !appSource.includes(needle));
 const missingCss = cssExpectations.filter(([, needle]) => !cssSource.includes(needle));
+const missingHtml = htmlExpectations.filter(([, needle]) => !indexSource.includes(needle));
 const presentForbidden = forbidden.filter(([, needle]) => appSource.includes(needle) || cssSource.includes(needle));
 const missingAssets = requiredAssets.filter((filePath) => !fs.existsSync(path.join(__dirname, filePath)));
+
+const emptyWarehouseSource = appSource.slice(
+  appSource.indexOf("function renderEmptyWarehouseState()"),
+  appSource.indexOf("function renderWarehouseCard("),
+);
+const emptyWarehouseFailures = [];
+if (emptyWarehouseSource.includes('class="toast')) {
+  emptyWarehouseFailures.push("Empty warehouse state renders a duplicate toast");
+}
 
 const toolbarSource = appSource.slice(
   appSource.indexOf("function renderToolbar()"),
@@ -122,7 +137,7 @@ const toolbarFailures = [];
   }
 });
 
-if (missing.length > 0 || missingCss.length > 0 || presentForbidden.length > 0 || missingAssets.length > 0 || toolbarFailures.length > 0) {
+if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || presentForbidden.length > 0 || missingAssets.length > 0 || toolbarFailures.length > 0 || emptyWarehouseFailures.length > 0) {
   if (missing.length > 0) {
     console.error("Missing app content:");
     for (const [label, needle] of missing) {
@@ -133,6 +148,13 @@ if (missing.length > 0 || missingCss.length > 0 || presentForbidden.length > 0 |
   if (missingCss.length > 0) {
     console.error("Missing CSS content:");
     for (const [label, needle] of missingCss) {
+      console.error(`- ${label}: ${needle}`);
+    }
+  }
+
+  if (missingHtml.length > 0) {
+    console.error("Missing HTML content:");
+    for (const [label, needle] of missingHtml) {
       console.error(`- ${label}: ${needle}`);
     }
   }
@@ -154,6 +176,13 @@ if (missing.length > 0 || missingCss.length > 0 || presentForbidden.length > 0 |
   if (toolbarFailures.length > 0) {
     console.error("Toolbar contract failures:");
     for (const failure of toolbarFailures) {
+      console.error(`- ${failure}`);
+    }
+  }
+
+  if (emptyWarehouseFailures.length > 0) {
+    console.error("Empty warehouse contract failures:");
+    for (const failure of emptyWarehouseFailures) {
       console.error(`- ${failure}`);
     }
   }

@@ -346,7 +346,6 @@ function renderEmptyWarehouseState() {
         <button class="primary-button" type="button" data-action="create-warehouse">新建松鼠仓</button>
       </main>
     </section>
-    ${state.toast ? `<div class="toast show">${escapeHtml(state.toast)}</div>` : '<div class="toast"></div>'}
   `;
 }
 
