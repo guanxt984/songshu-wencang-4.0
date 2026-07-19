@@ -42,6 +42,7 @@ const initialState = {
   editingPineconeId: null,
   referenceIds: [],
   iconCrop: null,
+  warehouseDialog: null,
   toolbarCollapsed: false,
   toolbarPosition: null,
   toast: "",
@@ -214,6 +215,7 @@ function loadState() {
         newShelfName: "",
         shelfQuery: "",
         editingPineconeId: null,
+        warehouseDialog: null,
       };
     }
   } catch {
@@ -224,7 +226,14 @@ function loadState() {
 }
 
 function saveState() {
-  const { toast: _toast, referenceIds: _referenceIds, iconCrop: _iconCrop, editMode: _editMode, ...persisted } = state;
+  const {
+    toast: _toast,
+    referenceIds: _referenceIds,
+    iconCrop: _iconCrop,
+    editMode: _editMode,
+    warehouseDialog: _warehouseDialog,
+    ...persisted
+  } = state;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
 
@@ -330,6 +339,7 @@ function render() {
 
     <input id="warehouse-icon-file" type="file" accept="image/*" hidden>
     ${state.iconCrop ? renderIconCropModal() : ""}
+    ${state.warehouseDialog ? renderWarehouseDialog() : ""}
   `;
 
   bindEvents();
@@ -355,6 +365,7 @@ function renderEmptyWarehouseState() {
         <button class="primary-button" type="button" data-action="create-warehouse">新建松鼠仓</button>
       </main>
     </section>
+    ${state.warehouseDialog ? renderWarehouseDialog() : ""}
   `;
 }
 
@@ -438,6 +449,39 @@ function renderIconCropModal() {
         <footer>
           <button type="button" data-action="cancel-icon-crop">取消</button>
           <button class="primary-action" type="button" data-action="save-icon-crop">保存图标</button>
+        </footer>
+      </section>
+    </div>
+  `;
+}
+
+function renderWarehouseDialog() {
+  const dialog = state.warehouseDialog;
+  if (!dialog) return "";
+
+  const isCreate = dialog.type === "create";
+  const warehouse = isCreate
+    ? null
+    : state.warehouses.find((item) => item.id === dialog.warehouseId);
+  if (!isCreate && !warehouse) return "";
+
+  return `
+    <div class="modal-backdrop warehouse-dialog-backdrop">
+      <section class="warehouse-dialog" role="dialog" aria-modal="true" aria-labelledby="warehouse-dialog-title">
+        <header>
+          <h3 id="warehouse-dialog-title">${isCreate ? "新建松果仓" : "删除松果仓"}</h3>
+        </header>
+        ${isCreate ? `
+          <label for="warehouse-name-input">松果仓名称</label>
+          <input id="warehouse-name-input" type="text" data-input="warehouse-name" autocomplete="off" required>
+        ` : `
+          <p>确定删除“${escapeHtml(warehouse.name)}”吗？仓内松果和整理文档会一并删除。</p>
+        `}
+        <footer>
+          <button type="button" data-action="cancel-warehouse-dialog">取消</button>
+          ${isCreate
+            ? '<button class="primary-action" type="button" data-action="confirm-create-warehouse">创建</button>'
+            : '<button class="primary-action danger-action" type="button" data-action="confirm-delete-warehouse">确认删除</button>'}
         </footer>
       </section>
     </div>
@@ -683,6 +727,15 @@ function bindEvents() {
         event.stopPropagation();
         deleteWarehouse(element.dataset.warehouseId);
       }
+      if (action === "cancel-warehouse-dialog") {
+        cancelWarehouseDialog();
+      }
+      if (action === "confirm-create-warehouse") {
+        confirmCreateWarehouse();
+      }
+      if (action === "confirm-delete-warehouse") {
+        confirmDeleteWarehouse();
+      }
       if (action === "focus-search") {
         document.querySelector("#doc-search")?.focus();
       }
@@ -726,6 +779,13 @@ function bindEvents() {
 
   document.querySelector("[data-input='pinecone']")?.addEventListener("input", (event) => {
     state.newPineconeText = event.target.value;
+  });
+
+  document.querySelector("[data-input='warehouse-name']")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      confirmCreateWarehouse();
+    }
   });
 
   document.querySelectorAll("input[name='add-destination']").forEach((input) => {
@@ -1283,8 +1343,14 @@ function deletePinecone(pineconeId) {
 function deleteWarehouse(warehouseId) {
   const warehouse = state.warehouses.find((item) => item.id === warehouseId);
   if (!warehouse) return;
-  const approved = confirm(`确定删除“${warehouse.name}”吗？仓内松果和整理文档会一并删除。`);
-  if (!approved) return;
+
+  state.warehouseDialog = { type: "delete", warehouseId };
+  render();
+}
+
+function confirmDeleteWarehouse() {
+  if (state.warehouseDialog?.type !== "delete") return;
+  const warehouseId = state.warehouseDialog.warehouseId;
 
   const result = removeWarehouse(state.warehouses, state.activeWarehouseId, warehouseId);
   if (!result.removed) return;
@@ -1303,23 +1369,42 @@ function resetWarehouseTransientState() {
   state.iconCrop = null;
   state.shelfOpen = false;
   state.editingPineconeId = null;
+  state.warehouseDialog = null;
 }
 
 function createWarehouse() {
-  const name = prompt("新建松果仓", "新的松果仓");
-  if (!name?.trim()) return;
+  state.warehouseDialog = { type: "create" };
+  render();
+  document.querySelector("[data-input='warehouse-name']")?.focus();
+}
+
+function cancelWarehouseDialog() {
+  state.warehouseDialog = null;
+  render();
+}
+
+function confirmCreateWarehouse() {
+  if (state.warehouseDialog?.type !== "create") return;
+  const input = document.querySelector("[data-input='warehouse-name']");
+  const name = input?.value.trim();
+  if (!name) {
+    input?.setCustomValidity("请输入松果仓名称");
+    input?.reportValidity();
+    return;
+  }
+  input.setCustomValidity("");
 
   const id = uid("warehouse");
   state.warehouses.unshift({
     id,
-    name: name.trim(),
+    name,
     updatedAt: nowText(),
     tempLimit: 5,
     pinecones: [],
     shelves: [
       { id: "ideas", name: "待整理线索", description: "新松果整理后会先放到这里。" },
     ],
-    reviewDocument: buildReviewDocument(name.trim(), [
+    reviewDocument: buildReviewDocument(name, [
       {
         shelfId: "ideas",
         heading: "先存下零散松果",
@@ -1329,6 +1414,7 @@ function createWarehouse() {
     ]),
   });
   state.activeWarehouseId = id;
+  state.warehouseDialog = null;
   saveState();
   render();
   showToast("松果仓已创建。");

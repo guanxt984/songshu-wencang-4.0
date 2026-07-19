@@ -58,6 +58,12 @@ const expectations = [
   ["warehouse pointer initiation state", "warehouseDragStartedFromButton"],
   ["warehouse touch drag state", "touchWarehouseDrag"],
   ["warehouse delete confirmation", "仓内松果和整理文档会一并删除"],
+  ["warehouse dialog state", "warehouseDialog"],
+  ["warehouse dialog renderer", "renderWarehouseDialog"],
+  ["warehouse dialog name input", "data-input=\"warehouse-name\""],
+  ["warehouse dialog cancel action", "data-action=\"cancel-warehouse-dialog\""],
+  ["warehouse dialog create action", "data-action=\"confirm-create-warehouse\""],
+  ["warehouse dialog delete action", "data-action=\"confirm-delete-warehouse\""],
 ];
 
 const cssExpectations = [
@@ -105,6 +111,8 @@ const forbidden = [
   ["css drawn collapsed toolbar mascot", ".toolbar-orb-mascot::before"],
   ["css drawn collapsed toolbar mascot face", ".toolbar-orb-mascot::after"],
   ["css drawn shelf tab pinecone", ".shelf-tab-pinecone {\n  position: relative;\n  width:"],
+  ["native warehouse name prompt", "prompt("],
+  ["native warehouse delete confirmation", "confirm("],
 ];
 
 const requiredAssets = [
@@ -127,6 +135,25 @@ const emptyWarehouseSource = appSource.slice(
 const emptyWarehouseFailures = [];
 if (emptyWarehouseSource.includes('class="toast')) {
   emptyWarehouseFailures.push("Empty warehouse state renders a duplicate toast");
+}
+
+const warehouseDialogSource = appSource.slice(
+  appSource.indexOf("function renderWarehouseDialog()"),
+  appSource.indexOf("function renderTemporaryShelfNotice("),
+);
+const warehouseDialogFailures = [];
+[
+  ["Warehouse dialog is modal", 'aria-modal="true"'],
+  ["Warehouse dialog has a dialog role", 'role="dialog"'],
+  ["Warehouse dialog has an accessible label", "aria-labelledby"],
+  ["Warehouse create field has a label", 'for="warehouse-name-input"'],
+].forEach(([failure, needle]) => {
+  if (!warehouseDialogSource.includes(needle)) {
+    warehouseDialogFailures.push(failure);
+  }
+});
+if (!appSource.includes("warehouseDialog: _warehouseDialog")) {
+  warehouseDialogFailures.push("Warehouse dialog state is persisted");
 }
 
 const toolbarSource = appSource.slice(
@@ -215,7 +242,7 @@ if (!Number.isFinite(moveThreshold) || moveThreshold < 4 || moveThreshold > 12) 
   warehouseDragFailures.push("Touch drag movement threshold is not small and bounded");
 }
 
-if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || presentForbidden.length > 0 || missingAssets.length > 0 || toolbarFailures.length > 0 || emptyWarehouseFailures.length > 0 || warehouseDragFailures.length > 0) {
+if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || presentForbidden.length > 0 || missingAssets.length > 0 || toolbarFailures.length > 0 || emptyWarehouseFailures.length > 0 || warehouseDialogFailures.length > 0 || warehouseDragFailures.length > 0) {
   if (missing.length > 0) {
     console.error("Missing app content:");
     for (const [label, needle] of missing) {
@@ -261,6 +288,13 @@ if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || pre
   if (emptyWarehouseFailures.length > 0) {
     console.error("Empty warehouse contract failures:");
     for (const failure of emptyWarehouseFailures) {
+      console.error(`- ${failure}`);
+    }
+  }
+
+  if (warehouseDialogFailures.length > 0) {
+    console.error("Warehouse dialog contract failures:");
+    for (const failure of warehouseDialogFailures) {
       console.error(`- ${failure}`);
     }
   }

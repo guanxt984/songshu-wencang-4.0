@@ -1234,7 +1234,8 @@ img {
   box-shadow: 0 22px 48px rgba(67, 38, 13, 0.18);
 }
 
-.icon-crop-modal {
+.icon-crop-modal,
+.warehouse-dialog {
   width: min(460px, calc(100vw - 36px));
   padding: 20px;
   border: 2px solid rgba(207, 170, 113, 0.78);
@@ -1244,7 +1245,8 @@ img {
 }
 
 .reference-modal header,
-.icon-crop-modal header {
+.icon-crop-modal header,
+.warehouse-dialog header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1252,7 +1254,8 @@ img {
 }
 
 .reference-modal h3,
-.icon-crop-modal h3 {
+.icon-crop-modal h3,
+.warehouse-dialog h3 {
   margin: 0;
   font-family: var(--font-title);
   font-size: 26px;
@@ -1361,6 +1364,55 @@ img {
   min-height: 340px;
   color: var(--muted);
   text-align: center;
+}
+
+.warehouse-dialog > label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.warehouse-dialog > input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1.5px solid rgba(144, 99, 38, 0.38);
+  border-radius: 12px;
+  background: rgba(255, 253, 247, 0.88);
+  color: var(--ink);
+  font: inherit;
+}
+
+.warehouse-dialog > input:focus {
+  border-color: rgba(92, 163, 55, 0.72);
+  outline: 3px solid rgba(92, 163, 55, 0.14);
+}
+
+.warehouse-dialog > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.warehouse-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.warehouse-dialog footer button {
+  width: auto;
+  padding: 9px 15px;
+  border: 1.5px solid rgba(144, 99, 38, 0.32);
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.82);
+}
+
+.warehouse-dialog .danger-action {
+  color: #9f382f;
+  border-color: rgba(159, 56, 47, 0.48);
+  background: rgba(255, 239, 232, 0.9);
 }
 
 .warehouse-empty-state {
