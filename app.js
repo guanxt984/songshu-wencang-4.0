@@ -1,3 +1,5 @@
+import { removeWarehouse, reorderWarehouses } from "./warehouse-management.js";
+
 const STORAGE_KEY = "squirrel-warehouse-mvp";
 const USE_API_ORGANIZER = false;
 
@@ -22,13 +24,22 @@ const nowText = () => "今天 " + new Date().toLocaleTimeString("zh-CN", { hour:
 const uid = (prefix) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
 const initialState = {
-  version: 3,
+  version: 5,
   activeWarehouseId: "interview",
   query: "",
   shelfOpen: false,
   addOpen: false,
+  editMode: false,
   newPineconeText: "",
+  addDestination: "temp",
+  selectedShelfId: "",
+  newShelfName: "",
+  shelfQuery: "",
+  editingPineconeId: null,
   referenceIds: [],
+  iconCrop: null,
+  toolbarCollapsed: false,
+  toolbarPosition: null,
   toast: "",
   warehouses: [
     {
@@ -142,6 +153,8 @@ const initialState = {
 let state = loadState();
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
+let toolbarDrag = null;
+let suppressToolbarClick = false;
 
 render();
 
@@ -180,8 +193,19 @@ function makeWarehouse(id, name, updatedAt, contents) {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (saved?.version === initialState.version && saved?.warehouses?.length) {
-      return { ...initialState, ...saved, toast: "", referenceIds: [], newPineconeText: "" };
+    if (saved?.version === initialState.version && Array.isArray(saved?.warehouses)) {
+      return {
+        ...initialState,
+        ...saved,
+        toast: "",
+        referenceIds: [],
+        newPineconeText: "",
+        addDestination: "temp",
+        selectedShelfId: "",
+        newShelfName: "",
+        shelfQuery: "",
+        editingPineconeId: null,
+      };
     }
   } catch {
     localStorage.removeItem(STORAGE_KEY);
@@ -191,16 +215,25 @@ function loadState() {
 }
 
 function saveState() {
-  const { toast: _toast, referenceIds: _referenceIds, ...persisted } = state;
+  const { toast: _toast, referenceIds: _referenceIds, iconCrop: _iconCrop, editMode: _editMode, ...persisted } = state;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
 
 function getActiveWarehouse() {
-  return state.warehouses.find((warehouse) => warehouse.id === state.activeWarehouseId) || state.warehouses[0];
+  return state.warehouses.find((warehouse) => warehouse.id === state.activeWarehouseId)
+    || state.warehouses[0]
+    || null;
 }
 
 function render() {
   const warehouse = getActiveWarehouse();
+  if (!warehouse) {
+    app.innerHTML = renderEmptyWarehouseState();
+    bindEvents();
+    renderToast();
+    return;
+  }
+
   const tempCount = warehouse.pinecones.filter((pinecone) => pinecone.status === "temp").length;
   const featuredCount = warehouse.pinecones.filter((pinecone) => pinecone.isFeatured).length;
 
@@ -261,7 +294,7 @@ function render() {
             </div>
           </header>
 
-          ${tempCount >= warehouse.tempLimit ? renderOrganizeNotice(tempCount) : ""}
+          ${tempCount >= warehouse.tempLimit ? renderTemporaryShelfNotice(tempCount) : ""}
 
           <div class="content-wrap">
             <nav class="toc" aria-label="目录">
@@ -281,38 +314,66 @@ function render() {
           ${state.addOpen ? renderAddPanel(warehouse) : ""}
           ${renderShelfDrawer(warehouse)}
 
-          <footer class="bottom-toolbar">
-            <button type="button" data-action="organize-existing"><span class="refresh-icon"></span><b>放进现有果架</b></button>
-            <button type="button" data-action="reorganize">${icons.leaf("toolbar-img")}<b>重新整理</b></button>
-            <button type="button" data-action="toggle-add">${icons.plus("toolbar-img add")}<b>添加松果</b></button>
-            <button type="button" data-action="toggle-shelf">${renderShelfIcon("toolbar-shelf-icon")}<b>松果架</b></button>
-          </footer>
+          ${renderToolbar()}
         </section>
       </main>
     </section>
 
-    ${state.referenceIds.length ? renderReferenceModal(warehouse) : ""}
+    <input id="warehouse-icon-file" type="file" accept="image/*" hidden>
+    ${state.iconCrop ? renderIconCropModal() : ""}
   `;
 
   bindEvents();
   renderToast();
 }
 
-function renderWarehouseCard(warehouse) {
-  const active = warehouse.id === state.activeWarehouseId;
+function renderEmptyWarehouseState() {
   return `
-    <button class="warehouse-card ${active ? "active" : ""}" type="button" data-warehouse="${warehouse.id}">
-      ${renderWarehouseIcon()}
-      <span class="warehouse-copy">
-        <strong>${escapeHtml(warehouse.name)}</strong>
-        <small>${escapeHtml(warehouse.updatedAt)}</small>
-      </span>
-      ${active ? '<i class="active-dot"></i>' : ""}
-    </button>
+    <section class="page-shell empty-warehouse-shell">
+      <header class="topbar">
+        <div class="brand">
+          ${icons.logo("brand-squirrel")}
+          <div>
+            <h1>松鼠文仓</h1>
+            <p>把零散松果整理成可复盘的文档 ${icons.leaf("brand-leaf")}</p>
+          </div>
+        </div>
+      </header>
+      <main class="warehouse-empty-state">
+        ${icons.logo("empty-warehouse-squirrel")}
+        <h2>还没有松鼠仓</h2>
+        <p>新建一个松鼠仓，开始收集和整理松果。</p>
+        <button class="primary-button" type="button" data-action="create-warehouse">新建松鼠仓</button>
+      </main>
+    </section>
+    ${state.toast ? `<div class="toast show">${escapeHtml(state.toast)}</div>` : '<div class="toast"></div>'}
   `;
 }
 
-function renderWarehouseIcon() {
+function renderWarehouseCard(warehouse) {
+  const active = warehouse.id === state.activeWarehouseId;
+  return `
+    <article class="warehouse-card ${active ? "active" : ""}" data-warehouse-card="${warehouse.id}">
+      <button class="warehouse-icon-button" type="button" data-icon-target="${warehouse.id}" aria-label="自定义 ${escapeHtml(warehouse.name)} 图标">
+        ${renderWarehouseIcon(warehouse)}
+      </button>
+      <button class="warehouse-copy" type="button" data-warehouse="${warehouse.id}">
+        <strong>${escapeHtml(warehouse.name)}</strong>
+        <small>${escapeHtml(warehouse.updatedAt)}</small>
+      </button>
+      ${active ? '<i class="active-dot"></i>' : ""}
+      <button class="warehouse-delete-button" type="button"
+        data-action="delete-warehouse" data-warehouse-id="${warehouse.id}"
+        aria-label="删除 ${escapeHtml(warehouse.name)}">×</button>
+    </article>
+  `;
+}
+
+function renderWarehouseIcon(warehouse) {
+  if (warehouse.iconDataUrl) {
+    return `<img class="warehouse-icon custom-warehouse-icon" src="${warehouse.iconDataUrl}" alt="">`;
+  }
+
   return asset("pinecone-warehouse-icon.png", "warehouse-icon");
 }
 
@@ -320,12 +381,65 @@ function renderShelfIcon(className) {
   return asset("pinecone-shelf-icon.png", className);
 }
 
-function renderOrganizeNotice(tempCount) {
+function renderToolbar() {
+  const positionStyle = state.toolbarPosition
+    ? ` style="left:${state.toolbarPosition.x}px; top:${state.toolbarPosition.y}px; right:auto; bottom:auto; transform:none;"`
+    : "";
+  const collapsed = state.toolbarCollapsed ? " collapsed" : "";
+
+  if (state.toolbarCollapsed) {
+    return `
+      <footer class="bottom-toolbar${collapsed}" data-toolbar${positionStyle}>
+        <button class="toolbar-orb" type="button" data-action="toggle-toolbar" data-drag-toolbar aria-label="展开工具栏">
+          ${icons.squirrel("toolbar-orb-mascot")}
+          ${icons.plus("toolbar-orb-icon")}
+        </button>
+      </footer>
+    `;
+  }
+
+  return `
+    <footer class="bottom-toolbar${collapsed}" data-toolbar${positionStyle}>
+      ${icons.squirrel("toolbar-mascot")}
+      <button class="toolbar-drag-handle" type="button" data-drag-toolbar aria-label="拖拽工具栏"><span></span><span></span></button>
+      <button type="button" data-action="toggle-add">${icons.plus("toolbar-img add")}<b>添加松果</b></button>
+      <button type="button" data-action="toggle-document-edit">${icons.book("toolbar-img")}<b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
+      <button type="button" data-action="reorganize">${icons.leaf("toolbar-img")}<b>全部重新整理</b></button>
+      <button class="toolbar-collapse" type="button" data-action="toggle-toolbar" aria-label="折叠工具栏">−</button>
+    </footer>
+  `;
+}
+
+function renderIconCropModal() {
+  return `
+    <div class="modal-backdrop" data-action="cancel-icon-crop">
+      <section class="icon-crop-modal" role="dialog" aria-modal="true" aria-label="调整松果仓图标">
+        <header>
+          <h3>调整图标圆形区域</h3>
+          <button type="button" data-action="cancel-icon-crop" aria-label="关闭">×</button>
+        </header>
+        <div class="crop-stage">
+          <div class="crop-preview">
+            <img src="${state.iconCrop.dataUrl}" alt="" style="transform: translate(${state.iconCrop.offsetX}px, ${state.iconCrop.offsetY}px) scale(${state.iconCrop.zoom / 100});">
+          </div>
+        </div>
+        <label>左右 <input type="range" min="-100" max="100" value="${state.iconCrop.offsetX}" data-crop-input="offsetX"></label>
+        <label>上下 <input type="range" min="-100" max="100" value="${state.iconCrop.offsetY}" data-crop-input="offsetY"></label>
+        <label>缩放 <input type="range" min="70" max="220" value="${state.iconCrop.zoom}" data-crop-input="zoom"></label>
+        <footer>
+          <button type="button" data-action="cancel-icon-crop">取消</button>
+          <button class="primary-action" type="button" data-action="save-icon-crop">保存图标</button>
+        </footer>
+      </section>
+    </div>
+  `;
+}
+
+function renderTemporaryShelfNotice(tempCount) {
   return `
     <div class="organize-notice">
-      <strong>${tempCount} 颗新松果攒好了，可以开始整理了。</strong>
-      <button type="button" data-action="organize-existing">放进现有果架</button>
-      <button type="button" data-action="reorganize">重新整理仓库</button>
+      <strong>暂存栏已有 ${tempCount} 颗松果。</strong>
+      <span>需要整体更新时，可以使用底部工具栏的“全部重新整理”。</span>
       <button type="button" data-action="dismiss-notice">稍后</button>
     </div>
   `;
@@ -344,27 +458,29 @@ function renderReviewDocument(warehouse) {
   }
 
   return sections.map((section, index) => `
-    <section class="doc-section">
-      <h3>${index + 1}. ${escapeHtml(section.heading)} ${icons.leaf("section-leaf")}</h3>
-      <p>${escapeHtml(section.summary)}</p>
-      ${index === 0 ? renderKeyBox(section) : ""}
+    <section class="doc-section" data-section-index="${index}">
+      <h3>
+        <span class="${state.editMode ? "editable-field" : ""}" ${state.editMode ? `contenteditable="true" data-edit-field="heading" data-section-index="${index}"` : ""}>${index + 1}. ${escapeHtml(section.heading)}</span>
+        ${icons.leaf("section-leaf")}
+      </h3>
+      <p class="${state.editMode ? "editable-field" : ""}" ${state.editMode ? `contenteditable="true" data-edit-field="summary" data-section-index="${index}"` : ""}>${escapeHtml(section.summary)}</p>
+      ${index === 0 ? renderKeyBox(section, index) : ""}
       <div class="soft-lines"><i></i><i></i><i></i></div>
     </section>
   `).join("");
 }
 
-function renderKeyBox(section) {
+function renderKeyBox(section, sectionIndex) {
   return `
     <div class="key-box">
       <h4>${icons.star("key-star")} 重点要点</h4>
       <ul>
-        ${section.bullets.map((bullet) => `
+        ${section.bullets.map((bullet, bulletIndex) => `
           <li>
             <span></span>
-            <button type="button" data-reference="${bullet.pineconeIds.join(",")}">
-              ${escapeHtml(bullet.text)}
-              <em>引用松果 ${bullet.pineconeIds.length} 颗</em>
-            </button>
+            <div class="key-item">
+              <span class="${state.editMode ? "editable-field" : ""}" ${state.editMode ? `contenteditable="true" data-edit-field="bullet" data-section-index="${sectionIndex}" data-bullet-index="${bulletIndex}"` : ""}>${escapeHtml(bullet.text)}</span>
+            </div>
           </li>
         `).join("")}
       </ul>
@@ -374,6 +490,7 @@ function renderKeyBox(section) {
 
 function renderAddPanel(warehouse) {
   const tempCount = warehouse.pinecones.filter((pinecone) => pinecone.status === "temp").length;
+  const selectedShelfId = state.selectedShelfId || warehouse.shelves[0]?.id || "";
   return `
     <aside class="add-panel">
       <div>
@@ -381,79 +498,164 @@ function renderAddPanel(warehouse) {
         <button type="button" data-action="toggle-add" aria-label="关闭">×</button>
       </div>
       <textarea data-input="pinecone" placeholder="粘贴一段经验、摘抄、灵感或聊天记录...">${escapeHtml(state.newPineconeText)}</textarea>
-      <p>添加后会先放入暂存栏。当前 ${tempCount}/${warehouse.tempLimit}。</p>
+      <fieldset class="add-destination">
+        <legend>选择去向</legend>
+        <label><input type="radio" name="add-destination" value="temp" ${state.addDestination === "temp" ? "checked" : ""}> 暂存栏</label>
+        <label><input type="radio" name="add-destination" value="existing" ${state.addDestination === "existing" ? "checked" : ""}> 已有素材栏</label>
+        <label><input type="radio" name="add-destination" value="new" ${state.addDestination === "new" ? "checked" : ""}> 新建素材栏</label>
+      </fieldset>
+      ${state.addDestination === "existing" ? `
+        <label class="add-field">素材栏
+          <select data-input="selected-shelf">
+            ${warehouse.shelves.map((shelf) => `<option value="${shelf.id}" ${selectedShelfId === shelf.id ? "selected" : ""}>${escapeHtml(shelf.name)}</option>`).join("")}
+          </select>
+        </label>
+      ` : ""}
+      ${state.addDestination === "new" ? `
+        <label class="add-field">新素材栏名称
+          <input type="text" data-input="new-shelf-name" placeholder="例如：面试表达" value="${escapeHtml(state.newShelfName)}">
+        </label>
+      ` : ""}
+      <p>${state.addDestination === "temp" ? `添加后只保存原始松果，不更新复盘文档。当前暂存栏 ${tempCount}/${warehouse.tempLimit}。` : "添加后会更新对应文档分区，不影响其他分区。"}</p>
       <button class="primary-action" type="button" data-action="add-pinecone">添加松果</button>
     </aside>
   `;
 }
 
 function renderShelfDrawer(warehouse) {
-  const grouped = warehouse.shelves.map((shelf) => ({
+  const query = state.shelfQuery.trim();
+  const shelves = [
+    {
+      id: "temp",
+      name: "暂存栏",
+      description: "暂时保存原始松果，不更新复盘文档。",
+      pinecones: warehouse.pinecones.filter((pinecone) => pinecone.status === "temp"),
+    },
+    ...warehouse.shelves.map((shelf) => ({
+      ...shelf,
+      pinecones: warehouse.pinecones.filter((pinecone) => pinecone.shelfId === shelf.id && pinecone.status === "shelved"),
+    })),
+  ].map((shelf) => ({
     ...shelf,
-    pinecones: warehouse.pinecones.filter((pinecone) => pinecone.shelfId === shelf.id && pinecone.status === "shelved"),
+    pinecones: query ? shelf.pinecones.filter((pinecone) => pinecone.content.includes(query)) : shelf.pinecones,
   }));
 
   return `
     <aside class="shelf-drawer ${state.shelfOpen ? "open" : ""}">
       <button class="shelf-tab" type="button" data-action="toggle-shelf">
         ${renderShelfIcon("drawer-shelf-icon")}
+        ${icons.pinecone("shelf-tab-pinecone")}
         <span>松果架</span>
       </button>
       <div class="shelf-content">
-        <h3>松果架</h3>
-        <p>AI 先把松果放到合适的果架，再整理成复盘文档。</p>
-        ${grouped.map((shelf) => `
-          <section>
-            <strong>${escapeHtml(shelf.name)}</strong>
-            <small>${shelf.pinecones.length} 颗松果</small>
-            <p>${escapeHtml(shelf.description)}</p>
-          </section>
-        `).join("")}
+        <header class="shelf-rack-header">
+          <h3>松果架</h3>
+          <p>查看和管理处理前的原始松果。</p>
+          <label class="shelf-search">搜索松果
+            <input type="search" data-input="shelf-search" value="${escapeHtml(state.shelfQuery)}" placeholder="搜索松果">
+          </label>
+        </header>
+        <div class="shelf-rack-body">
+          ${shelves.map((shelf) => renderShelfSection(shelf, warehouse)).join("")}
+        </div>
       </div>
     </aside>
   `;
 }
 
-function renderReferenceModal(warehouse) {
-  const references = warehouse.pinecones.filter((pinecone) => state.referenceIds.includes(pinecone.id));
+function renderShelfSection(shelf, warehouse) {
   return `
-    <div class="modal-backdrop" data-action="close-references">
-      <section class="reference-modal" role="dialog" aria-modal="true" aria-label="引用松果">
-        <header>
-          <h3>引用松果</h3>
-          <button type="button" data-action="close-references" aria-label="关闭">×</button>
-        </header>
-        <div class="reference-list">
-          ${references.map((pinecone) => `
-            <article>
-              <strong>${escapeHtml(pinecone.tags.join(" · ") || "原始松果")}</strong>
-              <p>${escapeHtml(pinecone.content)}</p>
-              <time>${escapeHtml(pinecone.createdAt)}</time>
-            </article>
-          `).join("")}
+    <section class="shelf-section">
+      <div class="shelf-section-head">
+        <strong>${escapeHtml(shelf.name)}</strong>
+        <small>${shelf.pinecones.length} 颗松果</small>
+      </div>
+      <p>${escapeHtml(shelf.description)}</p>
+      <div class="shelf-pinecones">
+        ${shelf.pinecones.length ? shelf.pinecones.map((pinecone) => renderShelfPinecone(pinecone, warehouse)).join("") : '<em class="empty-shelf">这里还没有松果</em>'}
+      </div>
+    </section>
+  `;
+}
+
+function renderShelfPinecone(pinecone, warehouse) {
+  const isEditing = state.editingPineconeId === pinecone.id;
+  return `
+    <article class="shelf-pinecone">
+      ${isEditing ? `
+        <textarea data-input="pinecone-edit" data-pinecone-id="${pinecone.id}">${escapeHtml(pinecone.content)}</textarea>
+        <div class="pinecone-actions">
+          <button type="button" data-action="save-pinecone" data-pinecone-id="${pinecone.id}">保存</button>
+          <button type="button" data-action="cancel-pinecone-edit">取消</button>
         </div>
-      </section>
-    </div>
+      ` : `
+        <p>${escapeHtml(pinecone.content)}</p>
+        <time>${escapeHtml(pinecone.createdAt)}</time>
+        <label class="move-control">移动到
+          <select data-action="move-pinecone" data-pinecone-id="${pinecone.id}">
+            <option value="temp" ${pinecone.status === "temp" ? "selected" : ""}>暂存栏</option>
+            ${warehouse.shelves.map((shelf) => `<option value="${shelf.id}" ${pinecone.shelfId === shelf.id ? "selected" : ""}>${escapeHtml(shelf.name)}</option>`).join("")}
+          </select>
+        </label>
+        <div class="pinecone-actions">
+          <button type="button" data-action="edit-pinecone" data-pinecone-id="${pinecone.id}">编辑</button>
+          <button type="button" data-action="delete-pinecone" data-pinecone-id="${pinecone.id}">删除</button>
+        </div>
+      `}
+    </article>
   `;
 }
 
 function bindEvents() {
+  document.querySelectorAll("[data-icon-target]").forEach((button) => {
+    button.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openIconPicker(button.dataset.iconTarget);
+    });
+  });
+
   document.querySelectorAll("[data-warehouse]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeWarehouseId = button.dataset.warehouse;
       state.query = "";
       state.addOpen = false;
+      state.editMode = false;
+      state.iconCrop = null;
       saveState();
       render();
     });
   });
 
+  document.querySelector("#warehouse-icon-file")?.addEventListener("change", handleIconFileSelected);
+
+  document.querySelectorAll("[data-crop-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+      updateIconCrop(input.dataset.cropInput, Number(input.value));
+    });
+  });
+
+  document.querySelectorAll("[data-drag-toolbar]").forEach((handle) => {
+    handle.addEventListener("pointerdown", startToolbarDrag);
+  });
+
   document.querySelectorAll("[data-action]").forEach((element) => {
     element.addEventListener("click", (event) => {
       const action = element.dataset.action;
+      if (action === "toggle-toolbar" && suppressToolbarClick) {
+        suppressToolbarClick = false;
+        return;
+      }
       if (action === "toggle-add") {
         state.addOpen = !state.addOpen;
+        state.editMode = false;
         render();
+      }
+      if (action === "toggle-toolbar") {
+        toggleToolbar();
+      }
+      if (action === "toggle-document-edit") {
+        toggleDocumentEdit();
       }
       if (action === "toggle-shelf") {
         state.shelfOpen = !state.shelfOpen;
@@ -462,35 +664,50 @@ function bindEvents() {
       if (action === "add-pinecone") {
         addPinecone();
       }
-      if (action === "organize-existing") {
-        organizeWarehouse("existing");
-      }
       if (action === "reorganize") {
         organizeWarehouse("reorganize");
       }
       if (action === "create-warehouse") {
         createWarehouse();
       }
+      if (action === "delete-warehouse") {
+        event.stopPropagation();
+        deleteWarehouse(element.dataset.warehouseId);
+      }
       if (action === "focus-search") {
         document.querySelector("#doc-search")?.focus();
-      }
-      if (action === "close-references") {
-        if (event.target === element || element.tagName === "BUTTON") {
-          state.referenceIds = [];
-          render();
-        }
       }
       if (action === "dismiss-notice") {
         showToast("新松果会继续留在暂存栏。");
       }
+      if (action === "cancel-icon-crop") {
+        if (event.target === element || element.tagName === "BUTTON") {
+          state.iconCrop = null;
+          render();
+        }
+      }
+      if (action === "save-icon-crop") {
+        saveWarehouseIcon();
+      }
+      if (action === "edit-pinecone") {
+        state.editingPineconeId = element.dataset.pineconeId;
+        render();
+      }
+      if (action === "cancel-pinecone-edit") {
+        state.editingPineconeId = null;
+        render();
+      }
+      if (action === "save-pinecone") {
+        savePineconeEdit(element.dataset.pineconeId);
+      }
+      if (action === "delete-pinecone") {
+        deletePinecone(element.dataset.pineconeId);
+      }
     });
   });
 
-  document.querySelectorAll("[data-reference]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.referenceIds = button.dataset.reference.split(",").filter(Boolean);
-      render();
-    });
+  document.querySelectorAll("[data-edit-field]").forEach((field) => {
+    field.addEventListener("input", () => updateDocumentDraft(field));
   });
 
   document.querySelector("[data-input='search']")?.addEventListener("input", (event) => {
@@ -501,6 +718,197 @@ function bindEvents() {
   document.querySelector("[data-input='pinecone']")?.addEventListener("input", (event) => {
     state.newPineconeText = event.target.value;
   });
+
+  document.querySelectorAll("input[name='add-destination']").forEach((input) => {
+    input.addEventListener("change", () => {
+      state.addDestination = input.value;
+      render();
+    });
+  });
+
+  document.querySelector("[data-input='selected-shelf']")?.addEventListener("change", (event) => {
+    state.selectedShelfId = event.target.value;
+  });
+
+  document.querySelector("[data-input='new-shelf-name']")?.addEventListener("input", (event) => {
+    state.newShelfName = event.target.value;
+  });
+
+  document.querySelector("[data-input='shelf-search']")?.addEventListener("input", (event) => {
+    state.shelfQuery = event.target.value;
+    render();
+  });
+
+  document.querySelectorAll("[data-action='move-pinecone']").forEach((select) => {
+    select.addEventListener("change", () => {
+      movePinecone(select.dataset.pineconeId, select.value);
+    });
+  });
+}
+
+function openIconPicker(warehouseId) {
+  const input = document.querySelector("#warehouse-icon-file");
+  if (!input) return;
+  input.dataset.warehouseId = warehouseId;
+  input.value = "";
+  input.click();
+}
+
+function handleIconFileSelected(event) {
+  const file = event.target.files?.[0];
+  const warehouseId = event.target.dataset.warehouseId;
+  if (!file || !warehouseId) return;
+  if (!file.type.startsWith("image/")) {
+    showToast("请选择图片文件。");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    state.iconCrop = {
+      warehouseId,
+      dataUrl: String(reader.result),
+      offsetX: 0,
+      offsetY: 0,
+      zoom: 100,
+    };
+    render();
+  });
+  reader.readAsDataURL(file);
+}
+
+function updateIconCrop(key, value) {
+  if (!state.iconCrop) return;
+  state.iconCrop = { ...state.iconCrop, [key]: value };
+  render();
+}
+
+async function saveWarehouseIcon() {
+  if (!state.iconCrop) return;
+  const warehouse = state.warehouses.find((item) => item.id === state.iconCrop.warehouseId);
+  if (!warehouse) return;
+
+  const image = await loadImage(state.iconCrop.dataUrl);
+  const canvas = document.createElement("canvas");
+  const size = 256;
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, size, size);
+  context.save();
+  context.beginPath();
+  context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  context.clip();
+  const scale = Math.max(size / image.naturalWidth, size / image.naturalHeight) * (state.iconCrop.zoom / 100);
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  const drawX = (size - drawWidth) / 2 + state.iconCrop.offsetX;
+  const drawY = (size - drawHeight) / 2 + state.iconCrop.offsetY;
+  context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+  context.restore();
+
+  warehouse.iconDataUrl = canvas.toDataURL("image/png");
+  warehouse.updatedAt = nowText();
+  state.iconCrop = null;
+  saveState();
+  showToast("松果仓图标已保存。");
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function toggleToolbar() {
+  state.toolbarCollapsed = !state.toolbarCollapsed;
+  saveState();
+  render();
+}
+
+function startToolbarDrag(event) {
+  if (event.button !== 0) return;
+  const toolbar = event.currentTarget.closest("[data-toolbar]");
+  if (!toolbar) return;
+  const rect = toolbar.getBoundingClientRect();
+  toolbarDrag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    moved: false,
+  };
+  state.toolbarPosition = { x: Math.round(rect.left), y: Math.round(rect.top) };
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+  document.addEventListener("pointermove", moveToolbar);
+  document.addEventListener("pointerup", stopToolbarDrag, { once: true });
+}
+
+function moveToolbar(event) {
+  if (!toolbarDrag) return;
+  const dx = event.clientX - toolbarDrag.startX;
+  const dy = event.clientY - toolbarDrag.startY;
+  if (Math.hypot(dx, dy) > 4) toolbarDrag.moved = true;
+  const toolbar = document.querySelector("[data-toolbar]");
+  const width = toolbar?.offsetWidth || 72;
+  const height = toolbar?.offsetHeight || 72;
+  const x = clamp(event.clientX - toolbarDrag.offsetX, 8, window.innerWidth - width - 8);
+  const y = clamp(event.clientY - toolbarDrag.offsetY, 8, window.innerHeight - height - 8);
+  state.toolbarPosition = { x: Math.round(x), y: Math.round(y) };
+  if (toolbar) {
+    toolbar.style.left = `${state.toolbarPosition.x}px`;
+    toolbar.style.top = `${state.toolbarPosition.y}px`;
+    toolbar.style.right = "auto";
+    toolbar.style.bottom = "auto";
+    toolbar.style.transform = "none";
+  }
+}
+
+function stopToolbarDrag() {
+  document.removeEventListener("pointermove", moveToolbar);
+  if (toolbarDrag?.moved) suppressToolbarClick = true;
+  toolbarDrag = null;
+  saveState();
+}
+
+function toggleDocumentEdit() {
+  if (state.editMode) {
+    saveDocumentEdits();
+    return;
+  }
+
+  state.editMode = true;
+  state.addOpen = false;
+  render();
+}
+
+function updateDocumentDraft(field) {
+  const warehouse = getActiveWarehouse();
+  const section = warehouse.reviewDocument.sections[Number(field.dataset.sectionIndex)];
+  if (!section) return;
+  const value = field.textContent.trim().replace(/^\d+\.\s*/, "");
+
+  if (field.dataset.editField === "heading") {
+    section.heading = value || section.heading;
+  }
+  if (field.dataset.editField === "summary") {
+    section.summary = value;
+  }
+  if (field.dataset.editField === "bullet") {
+    const bullet = section.bullets[Number(field.dataset.bulletIndex)];
+    if (bullet) bullet.text = value;
+  }
+  warehouse.updatedAt = nowText();
+}
+
+function saveDocumentEdits() {
+  state.editMode = false;
+  saveState();
+  showToast("复盘文档已保存。");
 }
 
 function addPinecone() {
@@ -511,22 +919,143 @@ function addPinecone() {
     return;
   }
 
+  let status = "temp";
+  let shelfId = null;
+  let shelfName = "暂存栏";
+
+  if (state.addDestination === "existing") {
+    const shelf = warehouse.shelves.find((item) => item.id === (state.selectedShelfId || warehouse.shelves[0]?.id));
+    if (!shelf) {
+      showToast("请先选择一个素材栏。");
+      return;
+    }
+    status = "shelved";
+    shelfId = shelf.id;
+    shelfName = shelf.name;
+  }
+
+  if (state.addDestination === "new") {
+    const name = state.newShelfName.trim();
+    if (!name) {
+      showToast("请填写新素材栏名称。");
+      return;
+    }
+    const newShelf = {
+      id: uid("shelf"),
+      name,
+      description: `围绕“${name}”补充的原始松果。`,
+    };
+    warehouse.shelves.push(newShelf);
+    status = "shelved";
+    shelfId = newShelf.id;
+    shelfName = newShelf.name;
+  }
+
   warehouse.pinecones.unshift({
     id: uid("pinecone"),
     content,
-    status: "temp",
-    shelfId: null,
-    tags: [],
+    status,
+    shelfId,
     isFeatured: false,
     createdAt: nowText().replace(" 更新", ""),
   });
+
+  if (status === "shelved") {
+    updateReviewSectionForShelf(warehouse, shelfId);
+  }
+
   warehouse.updatedAt = nowText();
   state.newPineconeText = "";
+  state.newShelfName = "";
+  state.addDestination = "temp";
+  state.selectedShelfId = "";
   state.addOpen = false;
   saveState();
+  showToast(status === "temp" ? "已放入暂存栏。" : `已放入“${shelfName}”，对应文档分区已更新。`);
+}
 
-  const tempCount = warehouse.pinecones.filter((pinecone) => pinecone.status === "temp").length;
-  showToast(`已放入暂存栏。当前 ${tempCount}/${warehouse.tempLimit}。`);
+function movePinecone(pineconeId, destinationId) {
+  const warehouse = getActiveWarehouse();
+  const pinecone = warehouse.pinecones.find((item) => item.id === pineconeId);
+  if (!pinecone) return;
+  const previousShelfId = pinecone.shelfId;
+
+  if (destinationId === "temp") {
+    pinecone.status = "temp";
+    pinecone.shelfId = null;
+  } else {
+    pinecone.status = "shelved";
+    pinecone.shelfId = destinationId;
+    updateReviewSectionForShelf(warehouse, destinationId);
+  }
+
+  if (previousShelfId && previousShelfId !== destinationId) {
+    updateReviewSectionForShelf(warehouse, previousShelfId);
+  }
+
+  warehouse.updatedAt = nowText();
+  saveState();
+  showToast(destinationId === "temp" ? "已移动到暂存栏。" : "已移动到素材栏，对应分区已更新。");
+}
+
+function savePineconeEdit(pineconeId) {
+  const warehouse = getActiveWarehouse();
+  const pinecone = warehouse.pinecones.find((item) => item.id === pineconeId);
+  const input = document.querySelector(`[data-input='pinecone-edit'][data-pinecone-id="${pineconeId}"]`);
+  if (!pinecone || !input) return;
+  const nextContent = input.value.trim();
+  if (!nextContent) {
+    showToast("松果内容不能为空。");
+    return;
+  }
+
+  pinecone.content = nextContent;
+  if (pinecone.status === "shelved") updateReviewSectionForShelf(warehouse, pinecone.shelfId);
+  warehouse.updatedAt = nowText();
+  state.editingPineconeId = null;
+  saveState();
+  showToast("松果已更新。");
+}
+
+function deletePinecone(pineconeId) {
+  const warehouse = getActiveWarehouse();
+  const pinecone = warehouse.pinecones.find((item) => item.id === pineconeId);
+  if (!pinecone) return;
+
+  warehouse.pinecones = warehouse.pinecones.filter((item) => item.id !== pineconeId);
+  warehouse.reviewDocument.sections.forEach((section) => {
+    section.bullets = section.bullets.filter((bullet) => !bullet.pineconeIds?.includes(pineconeId));
+  });
+  if (pinecone.status === "shelved") updateReviewSectionForShelf(warehouse, pinecone.shelfId);
+  warehouse.updatedAt = nowText();
+  state.editingPineconeId = null;
+  saveState();
+  showToast("松果已删除。");
+}
+
+function deleteWarehouse(warehouseId) {
+  const warehouse = state.warehouses.find((item) => item.id === warehouseId);
+  if (!warehouse) return;
+  const approved = confirm(`确定删除“${warehouse.name}”吗？仓内松果和整理文档会一并删除。`);
+  if (!approved) return;
+
+  const result = removeWarehouse(state.warehouses, state.activeWarehouseId, warehouseId);
+  if (!result.removed) return;
+  state.warehouses = result.warehouses;
+  state.activeWarehouseId = result.activeWarehouseId;
+  resetWarehouseTransientState();
+  saveState();
+  render();
+  showToast("松鼠仓已删除。");
+}
+
+function resetWarehouseTransientState() {
+  state.query = "";
+  state.addOpen = false;
+  state.editMode = false;
+  state.iconCrop = null;
+  state.shelfOpen = false;
+  state.editingPineconeId = null;
 }
 
 function createWarehouse() {
@@ -554,6 +1083,7 @@ function createWarehouse() {
   });
   state.activeWarehouseId = id;
   saveState();
+  render();
   showToast("松果仓已创建。");
 }
 
@@ -572,7 +1102,7 @@ async function organizeWarehouse(mode = "existing") {
   Object.assign(warehouse, result);
   warehouse.updatedAt = nowText();
   saveState();
-  showToast(mode === "reorganize" ? "已重新整理仓库，复盘文档已更新。" : `${tempCount} 颗松果已放进现有果架。`);
+  showToast(mode === "reorganize" ? "已全部重新整理，复盘文档已更新。" : `${tempCount} 颗松果已放入素材栏。`);
 }
 
 async function organizeWarehouseWithApi(_warehouse, _mode) {
@@ -591,7 +1121,6 @@ function organizeWarehouseWithMock(warehouse, mode) {
     const shelfId = chooseShelfId(pinecone.content);
     pinecone.shelfId = shelfId;
     pinecone.status = "shelved";
-    pinecone.tags = makeTags(pinecone.content);
   });
 
   working.reviewDocument = buildReviewFromShelves(working);
@@ -624,12 +1153,25 @@ function chooseShelfId(content) {
   return "other";
 }
 
-function makeTags(content) {
-  const tags = [];
-  if (/必须|重点|应该|要/.test(content)) tags.push("重点");
-  if (/准备|记录|整理|写清楚/.test(content)) tags.push("可执行");
-  if (/反复|常见|高频/.test(content)) tags.push("高频");
-  return tags.length ? tags : ["补充"];
+function updateReviewSectionForShelf(warehouse, shelfId) {
+  const shelf = warehouse.shelves.find((item) => item.id === shelfId);
+  if (!shelf) return;
+  const pinecones = warehouse.pinecones.filter((pinecone) => pinecone.status === "shelved" && pinecone.shelfId === shelfId);
+  const nextSection = {
+    shelfId: shelf.id,
+    heading: shelf.name,
+    summary: shelf.description,
+    bullets: pinecones.slice(0, 4).map((pinecone) => ({
+      text: summarizePinecone(pinecone.content),
+      pineconeIds: [pinecone.id],
+    })),
+  };
+  const index = warehouse.reviewDocument.sections.findIndex((section) => section.shelfId === shelfId);
+  if (index >= 0) {
+    warehouse.reviewDocument.sections[index] = nextSection;
+  } else {
+    warehouse.reviewDocument.sections.push(nextSection);
+  }
 }
 
 function buildReviewFromShelves(warehouse) {
@@ -694,4 +1236,8 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
