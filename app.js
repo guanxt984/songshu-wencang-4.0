@@ -279,11 +279,6 @@ function render() {
         <div class="warehouse-list">
           ${state.warehouses.map(renderWarehouseCard).join("")}
         </div>
-        <div class="panel-grass">
-          ${icons.grass("grass-a")}
-          ${icons.grass("grass-b")}
-          ${icons.star("grass-star")}
-        </div>
       </aside>
 
       <main class="document-panel">

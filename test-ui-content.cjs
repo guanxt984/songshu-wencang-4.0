@@ -113,6 +113,10 @@ const forbidden = [
   ["css drawn shelf tab pinecone", ".shelf-tab-pinecone {\n  position: relative;\n  width:"],
   ["native warehouse name prompt", "prompt("],
   ["native warehouse delete confirmation", "confirm("],
+  ["warehouse panel grass decoration", "panel-grass"],
+  ["warehouse panel first grass illustration", "grass-a"],
+  ["warehouse panel second grass illustration", "grass-b"],
+  ["warehouse panel star illustration", "grass-star"],
 ];
 
 const requiredAssets = [
