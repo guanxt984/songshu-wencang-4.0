@@ -2,6 +2,10 @@ import { removeWarehouse, reorderWarehouses } from "./warehouse-management.js";
 
 const STORAGE_KEY = "squirrel-warehouse-mvp";
 const USE_API_ORGANIZER = false;
+const TOUCH_DRAG_HOLD_MS = 300;
+const TOUCH_DRAG_MOVE_THRESHOLD = 8;
+const WAREHOUSE_AUTO_SCROLL_EDGE = 56;
+const WAREHOUSE_AUTO_SCROLL_SPEED = 10;
 
 const asset = (name, className, alt = "") =>
   `<img class="${className}" src="assets/illustrations/${name}" alt="${alt}" ${alt ? "" : 'aria-hidden="true"'}>`;
@@ -158,7 +162,9 @@ let suppressToolbarClick = false;
 let draggedWarehouseId = "";
 let warehouseDragStartedFromButton = false;
 let touchWarehouseDrag = null;
+let warehouseAutoScrollFrame = 0;
 
+document.addEventListener("touchmove", preventActiveWarehouseTouchScroll, { passive: false });
 render();
 
 function makeWarehouse(id, name, updatedAt, contents) {
@@ -754,19 +760,24 @@ function bindEvents() {
 function bindWarehouseDragEvents() {
   document.querySelectorAll("[data-warehouse-card]").forEach((card) => {
     card.addEventListener("pointerdown", (event) => {
+      if (touchWarehouseDrag) return;
       warehouseDragStartedFromButton = Boolean(event.target.closest("button"));
       if (warehouseDragStartedFromButton || event.pointerType !== "touch") return;
 
       touchWarehouseDrag = {
         pointerId: event.pointerId,
         sourceId: card.dataset.warehouseCard,
+        startX: event.clientX,
+        startY: event.clientY,
+        clientX: event.clientX,
+        clientY: event.clientY,
         targetId: "",
         placement: "before",
+        active: false,
+        activationTimer: window.setTimeout(() => {
+          activateTouchWarehouseDrag(card, event.pointerId);
+        }, TOUCH_DRAG_HOLD_MS),
       };
-      draggedWarehouseId = card.dataset.warehouseCard;
-      card.classList.add("dragging");
-      card.setPointerCapture(event.pointerId);
-      event.preventDefault();
     });
 
     card.addEventListener("dragstart", (event) => {
@@ -786,17 +797,23 @@ function bindWarehouseDragEvents() {
 
     card.addEventListener("pointermove", (event) => {
       if (!touchWarehouseDrag || event.pointerId !== touchWarehouseDrag.pointerId || event.pointerType !== "touch") return;
+      touchWarehouseDrag.clientX = event.clientX;
+      touchWarehouseDrag.clientY = event.clientY;
+
+      if (!touchWarehouseDrag.active) {
+        const distance = Math.hypot(
+          event.clientX - touchWarehouseDrag.startX,
+          event.clientY - touchWarehouseDrag.startY,
+        );
+        if (distance > TOUCH_DRAG_MOVE_THRESHOLD) {
+          clearWarehouseDragState();
+        }
+        return;
+      }
+
       event.preventDefault();
-      clearWarehouseDropIndicators();
-
-      const targetCard = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-warehouse-card]");
-      touchWarehouseDrag.targetId = "";
-      if (!targetCard || targetCard.dataset.warehouseCard === touchWarehouseDrag.sourceId) return;
-
-      const rect = targetCard.getBoundingClientRect();
-      touchWarehouseDrag.targetId = targetCard.dataset.warehouseCard;
-      touchWarehouseDrag.placement = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
-      targetCard.classList.add(`drop-${touchWarehouseDrag.placement}`);
+      updateTouchWarehouseDropTarget(event.clientX, event.clientY);
+      startWarehouseAutoScroll();
     });
 
     card.addEventListener("pointerup", (event) => {
@@ -833,16 +850,96 @@ function bindWarehouseDragEvents() {
   });
 }
 
+function activateTouchWarehouseDrag(card, pointerId) {
+  if (!touchWarehouseDrag || touchWarehouseDrag.pointerId !== pointerId || !card.isConnected) return;
+
+  touchWarehouseDrag.active = true;
+  touchWarehouseDrag.activationTimer = 0;
+  draggedWarehouseId = touchWarehouseDrag.sourceId;
+  card.classList.add("dragging");
+  card.setPointerCapture(pointerId);
+  updateTouchWarehouseDropTarget(touchWarehouseDrag.clientX, touchWarehouseDrag.clientY);
+  startWarehouseAutoScroll();
+}
+
+function preventActiveWarehouseTouchScroll(event) {
+  if (touchWarehouseDrag?.active) {
+    event.preventDefault();
+  }
+}
+
+function updateTouchWarehouseDropTarget(clientX, clientY) {
+  if (!touchWarehouseDrag?.active) return;
+
+  clearWarehouseDropIndicators();
+  const targetCard = document.elementFromPoint(clientX, clientY)?.closest("[data-warehouse-card]");
+  touchWarehouseDrag.targetId = "";
+  if (!targetCard || targetCard.dataset.warehouseCard === touchWarehouseDrag.sourceId) return;
+
+  const rect = targetCard.getBoundingClientRect();
+  touchWarehouseDrag.targetId = targetCard.dataset.warehouseCard;
+  touchWarehouseDrag.placement = clientY < rect.top + rect.height / 2 ? "before" : "after";
+  targetCard.classList.add(`drop-${touchWarehouseDrag.placement}`);
+}
+
+function startWarehouseAutoScroll() {
+  if (warehouseAutoScrollFrame || !touchWarehouseDrag?.active) return;
+  warehouseAutoScrollFrame = requestAnimationFrame(runWarehouseAutoScroll);
+}
+
+function runWarehouseAutoScroll() {
+  warehouseAutoScrollFrame = 0;
+  if (!touchWarehouseDrag?.active) return;
+
+  const { clientX, clientY } = touchWarehouseDrag;
+  const warehouseList = document.querySelector(".warehouse-list");
+  let didScroll = false;
+
+  if (warehouseList) {
+    const rect = warehouseList.getBoundingClientRect();
+    const delta = getWarehouseAutoScrollDelta(clientY, rect.top, rect.bottom);
+    if (delta) {
+      const previousScrollTop = warehouseList.scrollTop;
+      warehouseList.scrollTop += delta;
+      didScroll = warehouseList.scrollTop !== previousScrollTop;
+    }
+  }
+
+  if (!didScroll) {
+    const delta = getWarehouseAutoScrollDelta(clientY, 0, window.innerHeight);
+    if (delta) {
+      const previousScrollY = window.scrollY;
+      window.scrollBy(0, delta);
+      didScroll = window.scrollY !== previousScrollY;
+    }
+  }
+
+  updateTouchWarehouseDropTarget(clientX, clientY);
+  if (didScroll) startWarehouseAutoScroll();
+}
+
+function getWarehouseAutoScrollDelta(clientY, top, bottom) {
+  if (clientY < top + WAREHOUSE_AUTO_SCROLL_EDGE) return -WAREHOUSE_AUTO_SCROLL_SPEED;
+  if (clientY > bottom - WAREHOUSE_AUTO_SCROLL_EDGE) return WAREHOUSE_AUTO_SCROLL_SPEED;
+  return 0;
+}
+
+function stopWarehouseAutoScroll() {
+  if (!warehouseAutoScrollFrame) return;
+  cancelAnimationFrame(warehouseAutoScrollFrame);
+  warehouseAutoScrollFrame = 0;
+}
+
 function finishTouchWarehouseDrag(card, event, shouldReorder) {
   if (!touchWarehouseDrag || event.pointerId !== touchWarehouseDrag.pointerId || event.pointerType !== "touch") return;
 
-  const { sourceId, targetId, placement } = touchWarehouseDrag;
-  if (card.hasPointerCapture(event.pointerId)) {
+  const { sourceId, targetId, placement, active } = touchWarehouseDrag;
+  if (active && card.hasPointerCapture(event.pointerId)) {
     card.releasePointerCapture(event.pointerId);
   }
   clearWarehouseDragState();
 
-  if (!shouldReorder || !targetId) return;
+  if (!shouldReorder || !active || !targetId) return;
   const next = reorderWarehouses(state.warehouses, sourceId, targetId, placement);
   if (next !== state.warehouses) {
     state.warehouses = next;
@@ -858,6 +955,10 @@ function clearWarehouseDropIndicators() {
 }
 
 function clearWarehouseDragState() {
+  if (touchWarehouseDrag?.activationTimer) {
+    window.clearTimeout(touchWarehouseDrag.activationTimer);
+  }
+  stopWarehouseAutoScroll();
   draggedWarehouseId = "";
   warehouseDragStartedFromButton = false;
   touchWarehouseDrag = null;

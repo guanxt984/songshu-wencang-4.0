@@ -158,6 +158,15 @@ const warehouseDragFailures = [];
   ["Touch dragging cancels on pointer cancel", 'card.addEventListener("pointercancel"'],
   ["Touch dragging hit-tests the card under the pointer", "document.elementFromPoint"],
   ["Touch dragging is limited to touch pointers", 'event.pointerType !== "touch"'],
+  ["Touch dragging waits for long-press activation", "activateTouchWarehouseDrag"],
+  ["Touch dragging cancels an armed moving pointer", "TOUCH_DRAG_MOVE_THRESHOLD"],
+  ["Touch dragging rejects a second pointer", "if (touchWarehouseDrag) return;"],
+  ["Touch edge scrolling uses animation frames", "requestAnimationFrame"],
+  ["Touch edge scrolling targets the warehouse list", 'document.querySelector(".warehouse-list")'],
+  ["Touch edge scrolling includes the viewport edge", "window.innerHeight"],
+  ["Touch edge scrolling refreshes drop placement", "updateTouchWarehouseDropTarget"],
+  ["Touch edge scrolling is cancelled during cleanup", "cancelAnimationFrame"],
+  ["Active touch dragging suppresses browser panning", "preventActiveWarehouseTouchScroll"],
 ].forEach(([failure, needle]) => {
   if (!warehouseDragSource.includes(needle)) {
     warehouseDragFailures.push(failure);
@@ -166,12 +175,26 @@ const warehouseDragFailures = [];
 if (warehouseDragSource.includes('if (event.target.closest("button"))')) {
   warehouseDragFailures.push("Native drag still checks the retargeted dragstart target");
 }
+if (!appSource.includes('document.addEventListener("touchmove", preventActiveWarehouseTouchScroll, { passive: false });')) {
+  warehouseDragFailures.push("Active touch drag does not install a non-passive scroll prevention hook");
+}
 const warehouseCardCss = cssSource.slice(
   cssSource.indexOf('.warehouse-card[draggable="true"]'),
   cssSource.indexOf(".warehouse-icon-button,"),
 );
-if (!warehouseCardCss.includes("touch-action: none")) {
-  warehouseDragFailures.push("Warehouse cards do not reserve touch pointers for dragging");
+if (!warehouseCardCss.includes("touch-action: pan-y")) {
+  warehouseDragFailures.push("Warehouse cards do not preserve ordinary vertical touch scrolling");
+}
+if (warehouseCardCss.includes("touch-action: none")) {
+  warehouseDragFailures.push("Warehouse cards still block all native touch scrolling");
+}
+const holdDelay = Number(appSource.match(/const TOUCH_DRAG_HOLD_MS = (\d+);/)?.[1]);
+if (!Number.isFinite(holdDelay) || holdDelay < 250 || holdDelay > 350) {
+  warehouseDragFailures.push("Touch drag long-press delay is outside 250-350ms");
+}
+const moveThreshold = Number(appSource.match(/const TOUCH_DRAG_MOVE_THRESHOLD = (\d+);/)?.[1]);
+if (!Number.isFinite(moveThreshold) || moveThreshold < 4 || moveThreshold > 12) {
+  warehouseDragFailures.push("Touch drag movement threshold is not small and bounded");
 }
 
 if (missing.length > 0 || missingCss.length > 0 || missingHtml.length > 0 || presentForbidden.length > 0 || missingAssets.length > 0 || toolbarFailures.length > 0 || emptyWarehouseFailures.length > 0 || warehouseDragFailures.length > 0) {
