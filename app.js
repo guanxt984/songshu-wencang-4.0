@@ -43,6 +43,7 @@ const initialState = {
   referenceIds: [],
   iconCrop: null,
   warehouseDialog: null,
+  toolbarCollapsed: false,
   toast: "",
   warehouses: [
     {
@@ -279,7 +280,6 @@ function render() {
 
       <main class="document-panel">
         <section class="document-card">
-          ${icons.squirrel("document-perched-mascot")}
           <header class="doc-head">
             <div class="doc-title">
               ${icons.book("book-icon")}
@@ -295,11 +295,6 @@ function render() {
               </label>
               <button class="tool-button" type="button" aria-label="精选">${icons.star("tool-img")}</button>
               <button class="tool-button" type="button" aria-label="更多">${icons.more("tool-img more")}</button>
-              <div class="document-edit-actions">
-                <button class="document-edit-action add" type="button" data-action="toggle-add">${icons.plus("document-edit-icon add")}<b>添加松果</b></button>
-                <button class="document-edit-action edit" type="button" data-action="toggle-document-edit">${icons.book("document-edit-icon")}<b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
-                <button class="document-edit-action reorganize" type="button" data-action="reorganize">${icons.leaf("document-edit-icon")}<b>全部重新整理</b></button>
-              </div>
             </div>
             <div class="chips">
               <span>${icons.book("chip-img")} ${warehouse.reviewDocument.sections.length} 个章节</span>
@@ -329,6 +324,7 @@ function render() {
           ${state.addOpen ? renderAddPanel(warehouse) : ""}
           ${renderShelfDrawer(warehouse)}
 
+          ${renderToolbar()}
         </section>
       </main>
     </section>
@@ -395,6 +391,39 @@ function renderWarehouseIcon(warehouse) {
 
 function renderShelfIcon(className) {
   return asset("pinecone-shelf-icon.png", className);
+}
+
+function renderToolbar() {
+  const collapsed = state.toolbarCollapsed ? " collapsed" : "";
+
+  if (state.toolbarCollapsed) {
+    return `
+      <div class="document-toolbar-tab">
+        <footer class="bottom-toolbar${collapsed}" data-toolbar>
+          <button class="toolbar-orb" type="button" data-action="toggle-toolbar" aria-label="展开工具栏">
+          ${icons.squirrel("toolbar-orb-mascot")}
+          <span class="toolbar-orb-toolstack" aria-hidden="true">
+            ${icons.book("toolbar-orb-tool-book")}
+            ${icons.plus("toolbar-orb-tool-plus")}
+            ${icons.leaf("toolbar-orb-tool-leaf")}
+          </span>
+          </button>
+        </footer>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="document-toolbar-tab">
+      <footer class="bottom-toolbar${collapsed}" data-toolbar>
+        ${icons.squirrel("toolbar-mascot")}
+        <button type="button" data-action="toggle-add">${icons.plus("toolbar-img add")}<b>添加松果</b></button>
+        <button type="button" data-action="toggle-document-edit">${icons.book("toolbar-img")}<b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
+        <button type="button" data-action="reorganize">${icons.leaf("toolbar-img")}<b>全部重新整理</b></button>
+        <button class="toolbar-collapse" type="button" data-action="toggle-toolbar" aria-label="折叠工具栏">−</button>
+      </footer>
+    </div>
+  `;
 }
 
 function renderIconCropModal() {
@@ -662,6 +691,9 @@ function bindEvents() {
         state.addOpen = !state.addOpen;
         state.editMode = false;
         render();
+      }
+      if (action === "toggle-toolbar") {
+        toggleToolbar();
       }
       if (action === "toggle-document-edit") {
         toggleDocumentEdit();
@@ -1084,6 +1116,12 @@ function loadImage(src) {
     image.onerror = reject;
     image.src = src;
   });
+}
+
+function toggleToolbar() {
+  state.toolbarCollapsed = !state.toolbarCollapsed;
+  saveState();
+  render();
 }
 
 function toggleDocumentEdit() {

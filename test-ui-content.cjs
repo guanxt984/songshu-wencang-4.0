@@ -32,20 +32,25 @@ const expectations = [
   ["create warehouse handler", "createWarehouse"],
   ["custom warehouse icon handler", "openIconPicker"],
   ["icon crop save handler", "saveWarehouseIcon"],
-  ["document perched mascot", "document-perched-mascot"],
+  ["toolbar collapse handler", "toggleToolbar"],
   ["document editing handler", "toggleDocumentEdit"],
   ["document save handler", "saveDocumentEdits"],
   ["warehouse icon double click target", "data-icon-target"],
   ["warehouse icon file input", "warehouse-icon-file"],
   ["crop offset control", "data-crop-input=\"offsetX\""],
   ["crop zoom control", "data-crop-input=\"zoom\""],
-  ["document edit actions", "document-edit-actions"],
+  ["document toolbar tab", "document-toolbar-tab"],
+  ["collapsed toolbar tool icon group", "toolbar-orb-toolstack"],
+  ["collapsed toolbar tool plus", "toolbar-orb-tool-plus"],
+  ["collapsed toolbar tool book", "toolbar-orb-tool-book"],
+  ["collapsed toolbar tool leaf", "toolbar-orb-tool-leaf"],
   ["toolbar save document copy", "保存文档"],
   ["toolbar full reorganize copy", "全部重新整理"],
   ["approved warehouse icon", "pinecone-warehouse-icon.png"],
   ["approved shelf icon", "pinecone-shelf-icon.png"],
   ["approved pinecone icon", "pinecone-icon.png"],
-  ["document perched mascot png", "icons.squirrel(\"document-perched-mascot\")"],
+  ["toolbar mascot png", "icons.squirrel(\"toolbar-mascot\")"],
+  ["collapsed toolbar mascot png", "icons.squirrel(\"toolbar-orb-mascot\")"],
   ["shelf tab pinecone png", "icons.pinecone(\"shelf-tab-pinecone\")"],
   ["warehouse delete action", "data-action=\"delete-warehouse\""],
   ["warehouse empty state", "renderEmptyWarehouseState"],
@@ -68,8 +73,11 @@ const cssExpectations = [
   ["paper background", "--paper"],
   ["hand drawn card", ".document-card"],
   ["left panel", ".warehouse-panel"],
-  ["document edit actions", ".document-edit-actions"],
-  ["document perched mascot", ".document-perched-mascot"],
+  ["bottom toolbar", ".bottom-toolbar"],
+  ["collapsed toolbar", ".bottom-toolbar.collapsed"],
+  ["document toolbar tab", ".document-toolbar-tab"],
+  ["toolbar orb", ".toolbar-orb"],
+  ["toolbar orb tool stack", ".toolbar-orb-toolstack"],
   ["icon crop modal", ".icon-crop-modal"],
   ["editable document fields", ".editable-field"],
   ["add panel", ".add-panel"],
@@ -111,12 +119,6 @@ const forbidden = [
   ["old single collapsed toolbar icon", "toolbar-orb-icon"],
   ["floating toolbar drag handle", "toolbar-drag-handle"],
   ["floating toolbar drag target", "data-drag-toolbar"],
-  ["detached bottom toolbar", "bottom-toolbar"],
-  ["document bottom toolbar tab", "document-toolbar-tab"],
-  ["toolbar collapse action", "toggle-toolbar"],
-  ["toolbar collapse state", "toolbarCollapsed"],
-  ["toolbar renderer", "renderToolbar"],
-  ["toolbar orb", "toolbar-orb"],
   ["native warehouse name prompt", "prompt("],
   ["native warehouse delete confirmation", "confirm("],
   ["warehouse panel grass decoration", "panel-grass"],
@@ -167,8 +169,8 @@ if (!appSource.includes("warehouseDialog: _warehouseDialog")) {
 }
 
 const toolbarSource = appSource.slice(
-  appSource.indexOf('<div class="doc-actions">'),
-  appSource.indexOf('<div class="chips">'),
+  appSource.indexOf("function renderToolbar()"),
+  appSource.indexOf("function renderIconCropModal()"),
 );
 const toolbarFailures = [];
 ["toggle-document-edit", "toggle-add", "reorganize"].forEach((action) => {
@@ -184,41 +186,40 @@ const toolbarFailures = [];
 if (toolbarSource.includes("toolbarPosition")) {
   toolbarFailures.push("Toolbar still renders persisted floating position");
 }
-[
-  ["Document actions do not use the natural edit action group", toolbarSource, "document-edit-actions"],
-  ["Document add action does not render as an inline edit button", toolbarSource, "document-edit-action add"],
-  ["Document edit action does not render as an inline edit button", toolbarSource, "document-edit-action edit"],
-  ["Document reorganize action does not render as an inline edit button", toolbarSource, "document-edit-action reorganize"],
-  ["Document actions do not keep the add PNG helper", toolbarSource, 'icons.plus("document-edit-icon add")'],
-  ["Document actions do not keep the book PNG helper", toolbarSource, 'icons.book("document-edit-icon")'],
-  ["Document actions do not keep the leaf PNG helper", toolbarSource, 'icons.leaf("document-edit-icon")'],
-].forEach(([failure, source, needle]) => {
-  if (!source.includes(needle)) {
-    toolbarFailures.push(failure);
-  }
-});
-const documentCardCssSource = cssSource.slice(
-  cssSource.indexOf(".document-card {"),
-  cssSource.indexOf(".doc-head,"),
+const expandedToolbarCssSource = cssSource.slice(
+  cssSource.indexOf(".bottom-toolbar {"),
+  cssSource.indexOf(".bottom-toolbar::before"),
 );
-const contentWrapCssSource = cssSource.slice(
-  cssSource.indexOf(".content-wrap {"),
-  cssSource.indexOf(".toc {"),
+if (expandedToolbarCssSource.includes("position: fixed")) {
+  toolbarFailures.push("Toolbar is still fixed to the viewport instead of the document area");
+}
+const collapsedToolbarCssSource = cssSource.slice(
+  cssSource.indexOf(".bottom-toolbar.collapsed"),
+  cssSource.indexOf(".toolbar-orb {"),
 );
-const documentMascotCssSource = cssSource.slice(
-  cssSource.indexOf(".document-perched-mascot"),
-  cssSource.indexOf(".doc-head {"),
+const toolbarMascotRuleStart = cssSource.indexOf(".toolbar-mascot {", cssSource.indexOf(".toolbar-mascot,"));
+const toolbarMascotCssSource = cssSource.slice(
+  toolbarMascotRuleStart,
+  cssSource.indexOf(".toolbar-orb-mascot", toolbarMascotRuleStart),
 );
-const documentEditActionsCssSource = cssSource.slice(
-  cssSource.indexOf(".document-edit-actions"),
-  cssSource.indexOf(".document-edit-action {"),
+const toolbarOrbToolStackCssSource = cssSource.slice(
+  cssSource.indexOf(".toolbar-orb-toolstack"),
+  cssSource.indexOf(".toolbar-mascot,"),
+);
+const collapsedToolbarSource = toolbarSource.slice(
+  toolbarSource.indexOf("if (state.toolbarCollapsed)"),
+  toolbarSource.indexOf("</footer>", toolbarSource.indexOf("if (state.toolbarCollapsed)")),
 );
 [
-  ["Document card does not reserve space for a top perched mascot", documentCardCssSource, "overflow: visible"],
-  ["Document card does not use column layout for integrated header actions", documentCardCssSource, "display: flex"],
-  ["Document content still uses a fixed header-height subtraction", contentWrapCssSource, "flex: 1"],
-  ["Document perched mascot is not positioned on the document top edge", documentMascotCssSource, "top: -44px"],
-  ["Document edit actions do not occupy their own header row", documentEditActionsCssSource, "grid-column: 1 / -1"],
+  ["Toolbar does not sit in the document tab container", expandedToolbarCssSource, "position: relative"],
+  ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
+  ["Expanded mascot is not enlarged for an integrated perched pose", toolbarMascotCssSource, "width: 92px"],
+  ["Expanded mascot is not positioned into the toolbar edge", toolbarMascotCssSource, "top: -57px"],
+  ["Collapsed toolbar is not a circular prototype control", collapsedToolbarCssSource, "border-radius: 50%"],
+  ["Collapsed toolbar lacks the tool icon stack styling", toolbarOrbToolStackCssSource, ".toolbar-orb-toolstack"],
+  ["Collapsed toolbar stack does not render the plus PNG helper", collapsedToolbarSource, 'icons.plus("toolbar-orb-tool-plus")'],
+  ["Collapsed toolbar stack does not render the book PNG helper", collapsedToolbarSource, 'icons.book("toolbar-orb-tool-book")'],
+  ["Collapsed toolbar stack does not render the leaf PNG helper", collapsedToolbarSource, 'icons.leaf("toolbar-orb-tool-leaf")'],
 ].forEach(([failure, source, needle]) => {
   if (!source.includes(needle)) {
     toolbarFailures.push(failure);
