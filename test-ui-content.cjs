@@ -52,6 +52,9 @@ const expectations = [
   ["warehouse delete action", "data-action=\"delete-warehouse\""],
   ["warehouse empty state", "renderEmptyWarehouseState"],
   ["warehouse removal helper", "removeWarehouse"],
+  ["warehouse card draggable", "draggable=\"true\""],
+  ["warehouse drag binder", "bindWarehouseDragEvents"],
+  ["warehouse reorder helper", "reorderWarehouses"],
   ["warehouse delete confirmation", "仓内松果和整理文档会一并删除"],
 ];
 
@@ -68,6 +71,9 @@ const cssExpectations = [
   ["shelf drawer", ".shelf-drawer"],
   ["warehouse delete button", ".warehouse-delete-button"],
   ["warehouse empty state", ".warehouse-empty-state"],
+  ["warehouse dragging state", ".warehouse-card.dragging"],
+  ["warehouse before drop target", ".warehouse-card.drop-before"],
+  ["warehouse after drop target", ".warehouse-card.drop-after"],
 ];
 
 const htmlExpectations = [

@@ -155,6 +155,7 @@ const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
 let toolbarDrag = null;
 let suppressToolbarClick = false;
+let draggedWarehouseId = "";
 
 render();
 
@@ -352,7 +353,8 @@ function renderEmptyWarehouseState() {
 function renderWarehouseCard(warehouse) {
   const active = warehouse.id === state.activeWarehouseId;
   return `
-    <article class="warehouse-card ${active ? "active" : ""}" data-warehouse-card="${warehouse.id}">
+    <article class="warehouse-card ${active ? "active" : ""}"
+      data-warehouse-card="${warehouse.id}" draggable="true">
       <button class="warehouse-icon-button" type="button" data-icon-target="${warehouse.id}" aria-label="自定义 ${escapeHtml(warehouse.name)} 图标">
         ${renderWarehouseIcon(warehouse)}
       </button>
@@ -742,6 +744,58 @@ function bindEvents() {
     select.addEventListener("change", () => {
       movePinecone(select.dataset.pineconeId, select.value);
     });
+  });
+
+  bindWarehouseDragEvents();
+}
+
+function bindWarehouseDragEvents() {
+  document.querySelectorAll("[data-warehouse-card]").forEach((card) => {
+    card.addEventListener("dragstart", (event) => {
+      if (event.target.closest("button")) {
+        event.preventDefault();
+        return;
+      }
+      draggedWarehouseId = card.dataset.warehouseCard;
+      card.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", draggedWarehouseId);
+    });
+
+    card.addEventListener("dragover", (event) => {
+      if (!draggedWarehouseId || draggedWarehouseId === card.dataset.warehouseCard) return;
+      event.preventDefault();
+      clearWarehouseDropIndicators();
+      const rect = card.getBoundingClientRect();
+      card.classList.add(event.clientY < rect.top + rect.height / 2 ? "drop-before" : "drop-after");
+    });
+
+    card.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const placement = card.classList.contains("drop-after") ? "after" : "before";
+      const next = reorderWarehouses(state.warehouses, draggedWarehouseId, card.dataset.warehouseCard, placement);
+      if (next !== state.warehouses) {
+        state.warehouses = next;
+        saveState();
+        render();
+      }
+      clearWarehouseDragState();
+    });
+
+    card.addEventListener("dragend", clearWarehouseDragState);
+  });
+}
+
+function clearWarehouseDropIndicators() {
+  document.querySelectorAll(".drop-before, .drop-after").forEach((card) => {
+    card.classList.remove("drop-before", "drop-after");
+  });
+}
+
+function clearWarehouseDragState() {
+  draggedWarehouseId = "";
+  document.querySelectorAll(".warehouse-card").forEach((card) => {
+    card.classList.remove("dragging", "drop-before", "drop-after");
   });
 }
 

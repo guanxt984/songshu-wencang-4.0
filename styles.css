@@ -227,6 +227,27 @@ img {
   background: rgba(255, 251, 240, 0.68);
 }
 
+.warehouse-card[draggable="true"] { cursor: grab; }
+
+.warehouse-card.dragging {
+  opacity: .48;
+  cursor: grabbing;
+}
+
+.warehouse-card.drop-before::before,
+.warehouse-card.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 3px;
+  background: #6f9b72;
+}
+
+.warehouse-card.drop-before::before { top: -5px; }
+.warehouse-card.drop-after::after { bottom: -5px; }
+
 .warehouse-icon-button,
 .warehouse-copy {
   padding: 0;
