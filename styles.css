@@ -1103,11 +1103,11 @@ img {
 }
 
 .bottom-toolbar button .toolbar-icon-box {
-  transform: translate(-5px, -5px);
+  transform: translate(-5px, -6px);
 }
 
 .bottom-toolbar button b {
-  transform: translate(-5px, -5px);
+  transform: translate(-5px, -6px);
 }
 
 .bottom-toolbar button:focus-visible {
@@ -1134,7 +1134,7 @@ img {
   z-index: 2;
   object-fit: contain;
   pointer-events: none;
-  transform: translate(-50%, calc(-72% - 10px));
+  transform: translate(-50%, calc(-72% - 11px));
   filter: drop-shadow(0 4px 4px rgba(92, 51, 16, 0.18));
 }
 .toolbar-icon-box {

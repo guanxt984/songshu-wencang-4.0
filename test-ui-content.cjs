@@ -223,7 +223,7 @@ const toolbarLabelShiftCssSource = cssSource.slice(
   ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
   ["Toolbar does not use a stable three-column layout", expandedToolbarCssSource, "grid-template-columns: repeat(3, minmax(132px, 1fr))"],
   ["Perched mascot is not positioned near the toolbar's right fifth", toolbarMascotCssSource, "left: 80%"],
-  ["Perched mascot is not centered and raised by 10px", toolbarMascotCssSource, "transform: translate(-50%, calc(-72% - 10px))"],
+  ["Perched mascot is not centered and raised by 10px", toolbarMascotCssSource, "transform: translate(-50%, calc(-72% - 11px))"],
   ["Toolbar copy does not use the upright body font", toolbarButtonCssSource, "font-family: var(--font-body)"],
   ["Toolbar copy can still wrap", toolbarButtonCssSource, "white-space: nowrap"],
   ["Toolbar content is not vertically centered", toolbarButtonCssSource, "align-items: center"],
@@ -231,8 +231,8 @@ const toolbarLabelShiftCssSource = cssSource.slice(
   ["Toolbar icon box does not use a fixed 38px height", toolbarIconBoxCssSource, "height: 38px"],
   ["Toolbar lacks a keyboard focus treatment", cssSource, ".bottom-toolbar button:focus-visible"],
   ["Toolbar icons are not raised by 20px", cssSource, ".toolbar-icon-box"],
-  ["Toolbar icons are not shifted left by 5px", toolbarIconShiftCssSource, "transform: translate(-5px, -5px)"],
-  ["Toolbar copy is not shifted left by 5px", toolbarLabelShiftCssSource, "transform: translate(-5px, -5px)"],
+  ["Toolbar icons are not shifted left by 5px", toolbarIconShiftCssSource, "transform: translate(-5px, -6px)"],
+  ["Toolbar copy is not shifted left by 5px", toolbarLabelShiftCssSource, "transform: translate(-5px, -6px)"],
 ].forEach(([failure, source, needle]) => {
   if (!source.includes(needle)) {
     toolbarFailures.push(failure);
