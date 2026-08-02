@@ -950,11 +950,13 @@ img {
 
 /* Compact chapter shelf */
 .shelf-drawer.open {
-  max-width: 286px;
+  right: 0;
+  max-width: 232px;
   flex-direction: row-reverse;
 }
 
 .shelf-drawer.open .shelf-tab {
+  display: none; /* expanded shelf handle */
   grid-template-rows: 38px minmax(0, 1fr) 30px;
   width: 54px;
   height: 374px;
@@ -981,8 +983,16 @@ img {
 .shelf-content {
   width: 232px;
   max-height: 430px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   padding: 10px;
   border-radius: 16px 6px 6px 16px;
+}
+
+.shelf-content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .shelf-content::before,
