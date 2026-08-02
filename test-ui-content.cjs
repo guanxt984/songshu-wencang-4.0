@@ -223,7 +223,7 @@ const toolbarLabelShiftCssSource = cssSource.slice(
   ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
   ["Toolbar does not use a stable three-column layout", expandedToolbarCssSource, "grid-template-columns: repeat(3, minmax(119.13px, 1fr))"],
   ["Perched mascot is not positioned near the toolbar's right fifth", toolbarMascotCssSource, "left: 80%"],
-  ["Perched mascot is not centered and raised by 10px", toolbarMascotCssSource, "transform: translate(-50%, calc(-72% - 11px))"],
+  ["Perched mascot is not lowered by 2px", toolbarMascotCssSource, "transform: translate(-50%, calc(-72% - 9px))"],
   ["Toolbar copy does not use the upright body font", toolbarButtonCssSource, "font-family: var(--font-body)"],
   ["Toolbar copy can still wrap", toolbarButtonCssSource, "white-space: nowrap"],
   ["Toolbar content is not vertically centered", toolbarButtonCssSource, "align-items: center"],
