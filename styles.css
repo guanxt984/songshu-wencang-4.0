@@ -1102,6 +1102,10 @@ img {
   border-right: 0;
 }
 
+.bottom-toolbar button > * {
+  transform: translateY(-20px);
+}
+
 .bottom-toolbar button:focus-visible {
   position: relative;
   z-index: 3;
@@ -1126,7 +1130,7 @@ img {
   z-index: 2;
   object-fit: contain;
   pointer-events: none;
-  transform: translate(-50%, -72%);
+  transform: translate(-50%, calc(-72% - 10px));
   filter: drop-shadow(0 4px 4px rgba(92, 51, 16, 0.18));
 }
 .toolbar-icon-box {
