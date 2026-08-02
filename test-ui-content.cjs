@@ -231,8 +231,8 @@ const toolbarLabelShiftCssSource = cssSource.slice(
   ["Toolbar icon box does not use a fixed 38px height", toolbarIconBoxCssSource, "height: 38px"],
   ["Toolbar lacks a keyboard focus treatment", cssSource, ".bottom-toolbar button:focus-visible"],
   ["Toolbar icons are not raised by 20px", cssSource, ".toolbar-icon-box"],
-  ["Toolbar icons are not positioned 15px below the previous state", toolbarIconShiftCssSource, "transform: translateY(-5px)"],
-  ["Toolbar copy is not positioned 5px below the previous state", toolbarLabelShiftCssSource, "transform: translateY(-5px)"],
+  ["Toolbar icons are not shifted left by 5px", toolbarIconShiftCssSource, "transform: translate(-5px, -5px)"],
+  ["Toolbar copy is not shifted left by 5px", toolbarLabelShiftCssSource, "transform: translate(-5px, -5px)"],
 ].forEach(([failure, source, needle]) => {
   if (!source.includes(needle)) {
     toolbarFailures.push(failure);
