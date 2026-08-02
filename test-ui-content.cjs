@@ -210,6 +210,14 @@ const toolbarIconBoxCssSource = cssSource.slice(
   cssSource.indexOf(".toolbar-icon-box {"),
   cssSource.indexOf(".toolbar-img {"),
 );
+const toolbarIconShiftCssSource = cssSource.slice(
+  cssSource.indexOf(".bottom-toolbar button .toolbar-icon-box {"),
+  cssSource.indexOf(".bottom-toolbar button b {"),
+);
+const toolbarLabelShiftCssSource = cssSource.slice(
+  cssSource.indexOf(".bottom-toolbar button b {"),
+  cssSource.indexOf(".bottom-toolbar button:focus-visible"),
+);
 [
   ["Toolbar does not sit in the document tab container", expandedToolbarCssSource, "position: relative"],
   ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
@@ -223,8 +231,8 @@ const toolbarIconBoxCssSource = cssSource.slice(
   ["Toolbar icon box does not use a fixed 38px height", toolbarIconBoxCssSource, "height: 38px"],
   ["Toolbar lacks a keyboard focus treatment", cssSource, ".bottom-toolbar button:focus-visible"],
   ["Toolbar icons are not raised by 20px", cssSource, ".toolbar-icon-box"],
-  ["Toolbar icons are not translated by 20px", cssSource, "transform: translateY(-20px)"],
-  ["Toolbar copy is not positioned 10px below the icons", cssSource, "transform: translateY(-10px)"],
+  ["Toolbar icons are not positioned 15px below the previous state", toolbarIconShiftCssSource, "transform: translateY(-5px)"],
+  ["Toolbar copy is not positioned 5px below the previous state", toolbarLabelShiftCssSource, "transform: translateY(-5px)"],
 ].forEach(([failure, source, needle]) => {
   if (!source.includes(needle)) {
     toolbarFailures.push(failure);
