@@ -32,7 +32,6 @@ const expectations = [
   ["create warehouse handler", "createWarehouse"],
   ["custom warehouse icon handler", "openIconPicker"],
   ["icon crop save handler", "saveWarehouseIcon"],
-  ["toolbar collapse handler", "toggleToolbar"],
   ["document editing handler", "toggleDocumentEdit"],
   ["document save handler", "saveDocumentEdits"],
   ["warehouse icon double click target", "data-icon-target"],
@@ -40,17 +39,13 @@ const expectations = [
   ["crop offset control", "data-crop-input=\"offsetX\""],
   ["crop zoom control", "data-crop-input=\"zoom\""],
   ["document toolbar tab", "document-toolbar-tab"],
-  ["collapsed toolbar tool icon group", "toolbar-orb-toolstack"],
-  ["collapsed toolbar tool plus", "toolbar-orb-tool-plus"],
-  ["collapsed toolbar tool book", "toolbar-orb-tool-book"],
-  ["collapsed toolbar tool leaf", "toolbar-orb-tool-leaf"],
   ["toolbar save document copy", "保存文档"],
   ["toolbar full reorganize copy", "全部重新整理"],
   ["approved warehouse icon", "pinecone-warehouse-icon.png"],
   ["approved shelf icon", "pinecone-shelf-icon.png"],
   ["approved pinecone icon", "pinecone-icon.png"],
-  ["toolbar mascot png", "icons.squirrel(\"toolbar-mascot\")"],
-  ["collapsed toolbar mascot png", "icons.squirrel(\"toolbar-orb-mascot\")"],
+  ["document warehouse icon", "asset(\"pinecone-warehouse-icon.png\", \"book-icon\")"],
+  ["toolbar perched mascot png", "asset(\"squirrel-toolbar-perched.png\", \"toolbar-mascot\")"],
   ["shelf tab pinecone png", "icons.pinecone(\"shelf-tab-pinecone\")"],
   ["warehouse delete action", "data-action=\"delete-warehouse\""],
   ["warehouse empty state", "renderEmptyWarehouseState"],
@@ -74,10 +69,7 @@ const cssExpectations = [
   ["hand drawn card", ".document-card"],
   ["left panel", ".warehouse-panel"],
   ["bottom toolbar", ".bottom-toolbar"],
-  ["collapsed toolbar", ".bottom-toolbar.collapsed"],
   ["document toolbar tab", ".document-toolbar-tab"],
-  ["toolbar orb", ".toolbar-orb"],
-  ["toolbar orb tool stack", ".toolbar-orb-toolstack"],
   ["icon crop modal", ".icon-crop-modal"],
   ["editable document fields", ".editable-field"],
   ["add panel", ".add-panel"],
@@ -125,6 +117,11 @@ const forbidden = [
   ["warehouse panel first grass illustration", "grass-a"],
   ["warehouse panel second grass illustration", "grass-b"],
   ["warehouse panel star illustration", "grass-star"],
+  ["toolbar collapse action", "toggle-toolbar"],
+  ["toolbar collapsed state", "toolbarCollapsed"],
+  ["toolbar collapse control", ".toolbar-collapse"],
+  ["collapsed toolbar style", ".bottom-toolbar.collapsed"],
+  ["collapsed toolbar orb", ".toolbar-orb"],
 ];
 
 const requiredAssets = [
@@ -132,6 +129,7 @@ const requiredAssets = [
   "assets/illustrations/pinecone-shelf-icon.png",
   "assets/illustrations/pinecone-icon.png",
   "assets/illustrations/squirrel-wencang-logo-ip.png",
+  "assets/illustrations/squirrel-toolbar-perched.png",
 ];
 
 const missing = expectations.filter(([, needle]) => !appSource.includes(needle));
@@ -178,6 +176,9 @@ const toolbarFailures = [];
     toolbarFailures.push(`Missing toolbar action: ${action}`);
   }
 });
+if ((toolbarSource.match(/<button\b/g) || []).length !== 3) {
+  toolbarFailures.push("Toolbar does not render exactly three action buttons");
+}
 ["organize-existing", "toggle-shelf"].forEach((action) => {
   if (toolbarSource.includes(`data-action="${action}"`)) {
     toolbarFailures.push(`Forbidden toolbar action: ${action}`);
@@ -193,39 +194,22 @@ const expandedToolbarCssSource = cssSource.slice(
 if (expandedToolbarCssSource.includes("position: fixed")) {
   toolbarFailures.push("Toolbar is still fixed to the viewport instead of the document area");
 }
-const collapsedToolbarCssSource = cssSource.slice(
-  cssSource.indexOf(".bottom-toolbar.collapsed"),
-  cssSource.indexOf(".toolbar-orb {"),
-);
-const toolbarMascotRuleStart = cssSource.indexOf(".toolbar-mascot {", cssSource.indexOf(".toolbar-mascot,"));
+const toolbarMascotRuleStart = cssSource.indexOf(".toolbar-mascot {");
 const toolbarMascotCssSource = cssSource.slice(
   toolbarMascotRuleStart,
-  cssSource.indexOf(".toolbar-orb-mascot", toolbarMascotRuleStart),
-);
-const toolbarOrbToolStackCssSource = cssSource.slice(
-  cssSource.indexOf(".toolbar-orb-toolstack"),
-  cssSource.indexOf(".toolbar-mascot,"),
-);
-const collapsedToolbarSource = toolbarSource.slice(
-  toolbarSource.indexOf("if (state.toolbarCollapsed)"),
-  toolbarSource.indexOf("</footer>", toolbarSource.indexOf("if (state.toolbarCollapsed)")),
+  cssSource.indexOf(".toolbar-img", toolbarMascotRuleStart),
 );
 [
   ["Toolbar does not sit in the document tab container", expandedToolbarCssSource, "position: relative"],
   ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
-  ["Expanded mascot is not enlarged for an integrated perched pose", toolbarMascotCssSource, "width: 92px"],
-  ["Expanded mascot is not positioned into the toolbar edge", toolbarMascotCssSource, "top: -57px"],
-  ["Collapsed toolbar is not a circular prototype control", collapsedToolbarCssSource, "border-radius: 50%"],
-  ["Collapsed toolbar lacks the tool icon stack styling", toolbarOrbToolStackCssSource, ".toolbar-orb-toolstack"],
-  ["Collapsed toolbar stack does not render the plus PNG helper", collapsedToolbarSource, 'icons.plus("toolbar-orb-tool-plus")'],
-  ["Collapsed toolbar stack does not render the book PNG helper", collapsedToolbarSource, 'icons.book("toolbar-orb-tool-book")'],
-  ["Collapsed toolbar stack does not render the leaf PNG helper", collapsedToolbarSource, 'icons.leaf("toolbar-orb-tool-leaf")'],
+  ["Toolbar does not use a stable three-column layout", expandedToolbarCssSource, "grid-template-columns: repeat(3, minmax(132px, 1fr))"],
+  ["Perched mascot is not positioned near the toolbar's right fifth", toolbarMascotCssSource, "left: 80%"],
+  ["Perched mascot is not centered on its positioning anchor", toolbarMascotCssSource, "transform: translate(-50%, -72%)"],
 ].forEach(([failure, source, needle]) => {
   if (!source.includes(needle)) {
     toolbarFailures.push(failure);
   }
 });
-
 const warehouseDragSource = appSource.slice(
   appSource.indexOf("function bindWarehouseDragEvents()"),
   appSource.indexOf("function openIconPicker("),

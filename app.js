@@ -43,7 +43,6 @@ const initialState = {
   referenceIds: [],
   iconCrop: null,
   warehouseDialog: null,
-  toolbarCollapsed: false,
   toast: "",
   warehouses: [
     {
@@ -282,7 +281,7 @@ function render() {
         <section class="document-card">
           <header class="doc-head">
             <div class="doc-title">
-              ${icons.book("book-icon")}
+              ${asset("pinecone-warehouse-icon.png", "book-icon")}
               <div>
                 <h2>${escapeHtml(warehouse.reviewDocument.title)}</h2>
                 <div class="title-underline"></div>
@@ -394,38 +393,17 @@ function renderShelfIcon(className) {
 }
 
 function renderToolbar() {
-  const collapsed = state.toolbarCollapsed ? " collapsed" : "";
-
-  if (state.toolbarCollapsed) {
-    return `
-      <div class="document-toolbar-tab">
-        <footer class="bottom-toolbar${collapsed}" data-toolbar>
-          <button class="toolbar-orb" type="button" data-action="toggle-toolbar" aria-label="展开工具栏">
-          ${icons.squirrel("toolbar-orb-mascot")}
-          <span class="toolbar-orb-toolstack" aria-hidden="true">
-            ${icons.book("toolbar-orb-tool-book")}
-            ${icons.plus("toolbar-orb-tool-plus")}
-            ${icons.leaf("toolbar-orb-tool-leaf")}
-          </span>
-          </button>
-        </footer>
-      </div>
-    `;
-  }
-
   return `
     <div class="document-toolbar-tab">
-      <footer class="bottom-toolbar${collapsed}" data-toolbar>
-        ${icons.squirrel("toolbar-mascot")}
+      <footer class="bottom-toolbar" data-toolbar>
+        ${asset("squirrel-toolbar-perched.png", "toolbar-mascot")}
         <button type="button" data-action="toggle-add">${icons.plus("toolbar-img add")}<b>添加松果</b></button>
         <button type="button" data-action="toggle-document-edit">${icons.book("toolbar-img")}<b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
         <button type="button" data-action="reorganize">${icons.leaf("toolbar-img")}<b>全部重新整理</b></button>
-        <button class="toolbar-collapse" type="button" data-action="toggle-toolbar" aria-label="折叠工具栏">−</button>
       </footer>
     </div>
   `;
 }
-
 function renderIconCropModal() {
   return `
     <div class="modal-backdrop" data-action="cancel-icon-crop">
@@ -691,9 +669,6 @@ function bindEvents() {
         state.addOpen = !state.addOpen;
         state.editMode = false;
         render();
-      }
-      if (action === "toggle-toolbar") {
-        toggleToolbar();
       }
       if (action === "toggle-document-edit") {
         toggleDocumentEdit();
@@ -1116,12 +1091,6 @@ function loadImage(src) {
     image.onerror = reject;
     image.src = src;
   });
-}
-
-function toggleToolbar() {
-  state.toolbarCollapsed = !state.toolbarCollapsed;
-  saveState();
-  render();
 }
 
 function toggleDocumentEdit() {
