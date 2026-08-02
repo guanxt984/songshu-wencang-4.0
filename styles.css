@@ -949,14 +949,13 @@ img {
 }
 
 /* Compact chapter shelf */
-.shelf-drawer {
+.shelf-drawer.open {
   max-width: 286px;
   flex-direction: row-reverse;
-  transform: translateX(232px);
 }
 
-.shelf-tab {
-  grid-template-rows: 38px minmax(0, 1fr);
+.shelf-drawer.open .shelf-tab {
+  grid-template-rows: 38px minmax(0, 1fr) 30px;
   width: 54px;
   height: 374px;
   min-height: 374px;
@@ -966,22 +965,17 @@ img {
   border-left: 0;
 }
 
-.shelf-tab::after {
+.shelf-drawer.open .shelf-tab::after {
   left: 17px;
   top: 122px;
   font-size: 18px;
 }
 
-.drawer-shelf-icon {
+.shelf-drawer.open .drawer-shelf-icon {
   width: 30px;
   height: 30px;
   padding: 3px;
   border-radius: 9px;
-}
-
-.shelf-tab-pinecone,
-.shelf-tab > span:last-child {
-  display: none;
 }
 
 .shelf-content {
