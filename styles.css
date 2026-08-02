@@ -1058,9 +1058,9 @@ img {
 .bottom-toolbar {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(125.4px, 1fr));
-  width: min(608px, calc(95% - 53.2px));
-  min-height: 62.7px;
+  grid-template-columns: repeat(3, minmax(119.13px, 1fr));
+  width: min(577.6px, calc(90.25% - 50.54px));
+  min-height: 56.43px;
   padding-top: 12px;
   overflow: visible;
   border: 1.6px solid rgba(207, 170, 113, 0.76);
@@ -1129,7 +1129,7 @@ img {
   position: absolute;
   left: 80%;
   top: 0;
-  width: 153px;
+  width: 145.35px;
   height: auto;
   z-index: 2;
   object-fit: contain;
@@ -1140,20 +1140,20 @@ img {
 .toolbar-icon-box {
   display: grid;
   place-items: center;
-  width: 34.2px;
-  height: 34.2px;
-  flex: 0 0 34.2px;
+  width: 32.49px;
+  height: 32.49px;
+  flex: 0 0 32.49px;
 }
 
 .toolbar-img {
-  width: 28.8px;
-  height: 28.8px;
+  width: 27.36px;
+  height: 27.36px;
   transform: none;
 }
 
 .toolbar-img.add {
-  width: 34.2px;
-  height: 34.2px;
+  width: 32.49px;
+  height: 32.49px;
 }
 
 .refresh-icon {
@@ -1494,9 +1494,9 @@ img {
   }
 
   .bottom-toolbar {
-    grid-template-columns: repeat(3, minmax(77.9px, 1fr));
-    width: calc(95% - 22.8px);
-    min-height: 68.4px;
+    grid-template-columns: repeat(3, minmax(74.005px, 1fr));
+    width: calc(90.25% - 21.66px);
+    min-height: 61.56px;
   }
 
   .bottom-toolbar button {
@@ -1507,19 +1507,19 @@ img {
   }
 
   .toolbar-icon-box {
-    width: 16.2px;
-    height: 16.2px;
-    flex: 0 0 16.2px;
+    width: 15.39px;
+    height: 15.39px;
+    flex: 0 0 15.39px;
   }
 
   .toolbar-img,
   .toolbar-img.add {
-    width: 16.2px;
-    height: 16.2px;
+    width: 15.39px;
+    height: 15.39px;
   }
 
   .toolbar-mascot {
-    width: 131.4px;
+    width: 124.83px;
     height: auto;
   }
 
