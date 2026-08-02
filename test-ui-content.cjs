@@ -85,6 +85,7 @@ const cssExpectations = [
   ["small shelf title icon style", ".shelf-title-icon"],
   ["expanded shelf tab style is state scoped", ".shelf-drawer.open .shelf-tab"],
   ["expanded shelf tab icon style is state scoped", ".shelf-drawer.open .drawer-shelf-icon"],
+  ["collapsed shelf leaves the full original tab visible", "transform: translateX(232px)"],
   ["warehouse delete button", ".warehouse-delete-button"],
   ["warehouse empty state", ".warehouse-empty-state"],
   ["warehouse dragging state", ".warehouse-card.dragging"],

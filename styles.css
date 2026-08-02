@@ -703,7 +703,7 @@ img {
   align-items: flex-start;
   max-width: 356px;
   filter: drop-shadow(0 16px 18px rgba(96, 52, 15, 0.16));
-  transform: translateX(286px);
+  transform: translateX(232px);
   transition: transform 220ms ease;
 }
 
