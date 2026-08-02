@@ -63,6 +63,10 @@ const expectations = [
   ["warehouse dialog cancel action", "data-action=\"cancel-warehouse-dialog\""],
   ["warehouse dialog create action", "data-action=\"confirm-create-warehouse\""],
   ["warehouse dialog delete action", "data-action=\"confirm-delete-warehouse\""],
+  ["shelf rows follow document sections", "warehouse.reviewDocument.sections.map"],
+  ["shelf title icon", "shelf-title-icon"],
+  ["compact expandable shelf row", '<details class="shelf-section"'],
+  ["small shelf count", "shelf-count"],
 ];
 
 const cssExpectations = [
@@ -75,6 +79,10 @@ const cssExpectations = [
   ["editable document fields", ".editable-field"],
   ["add panel", ".add-panel"],
   ["shelf drawer", ".shelf-drawer"],
+  ["medium narrow shelf content", "width: 232px"],
+  ["compact shelf rows", ".shelf-rack-body"],
+  ["small shelf count type", ".shelf-count"],
+  ["small shelf title icon style", ".shelf-title-icon"],
   ["warehouse delete button", ".warehouse-delete-button"],
   ["warehouse empty state", ".warehouse-empty-state"],
   ["warehouse dragging state", ".warehouse-card.dragging"],

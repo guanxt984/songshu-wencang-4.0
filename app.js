@@ -551,34 +551,34 @@ function renderAddPanel(warehouse) {
 
 function renderShelfDrawer(warehouse) {
   const query = state.shelfQuery.trim();
-  const shelves = [
-    {
-      id: "temp",
-      name: "暂存栏",
-      description: "暂时保存原始松果，不更新复盘文档。",
-      pinecones: warehouse.pinecones.filter((pinecone) => pinecone.status === "temp"),
-    },
-    ...warehouse.shelves.map((shelf) => ({
-      ...shelf,
-      pinecones: warehouse.pinecones.filter((pinecone) => pinecone.shelfId === shelf.id && pinecone.status === "shelved"),
-    })),
-  ].map((shelf) => ({
-    ...shelf,
-    pinecones: query ? shelf.pinecones.filter((pinecone) => pinecone.content.includes(query)) : shelf.pinecones,
-  }));
+  const shelves = warehouse.reviewDocument.sections.map((section) => {
+    const shelf = warehouse.shelves.find((item) => item.id === section.shelfId);
+    const pinecones = warehouse.pinecones.filter((pinecone) =>
+      pinecone.status === "shelved" && pinecone.shelfId === section.shelfId,
+    );
+    return {
+      id: section.shelfId,
+      name: section.heading,
+      description: section.summary || shelf?.description || "",
+      pinecones: query ? pinecones.filter((pinecone) => pinecone.content.includes(query)) : pinecones,
+    };
+  });
 
   return `
     <aside class="shelf-drawer ${state.shelfOpen ? "open" : ""}">
-      <button class="shelf-tab" type="button" data-action="toggle-shelf">
+      <button class="shelf-tab" type="button" data-action="toggle-shelf" aria-label="${state.shelfOpen ? "收起松果架" : "打开松果架"}">
         ${renderShelfIcon("drawer-shelf-icon")}
         ${icons.pinecone("shelf-tab-pinecone")}
         <span>松果架</span>
       </button>
       <div class="shelf-content">
         <header class="shelf-rack-header">
-          <h3>松果架</h3>
-          <p>查看和管理处理前的原始松果。</p>
-          <label class="shelf-search">搜索松果
+          <div class="shelf-title-row">
+            ${renderShelfIcon("shelf-title-icon")}
+            <h3>松果架</h3>
+            <button class="shelf-close" type="button" data-action="toggle-shelf" aria-label="收起松果架">×</button>
+          </div>
+          <label class="shelf-search"><span>搜索松果</span>
             <input type="search" data-input="shelf-search" value="${escapeHtml(state.shelfQuery)}" placeholder="搜索松果">
           </label>
         </header>
@@ -592,19 +592,23 @@ function renderShelfDrawer(warehouse) {
 
 function renderShelfSection(shelf, warehouse) {
   return `
-    <section class="shelf-section">
-      <div class="shelf-section-head">
-        <strong>${escapeHtml(shelf.name)}</strong>
-        <small>${shelf.pinecones.length} 颗松果</small>
+    <details class="shelf-section">
+      <summary>
+        <span class="shelf-section-copy">
+          <strong>${escapeHtml(shelf.name)}</strong>
+          <small class="shelf-count">${shelf.pinecones.length} 颗松果</small>
+        </span>
+        <span class="shelf-chevron" aria-hidden="true">›</span>
+      </summary>
+      <div class="shelf-section-body">
+        <p>${escapeHtml(shelf.description)}</p>
+        <div class="shelf-pinecones">
+          ${shelf.pinecones.length ? shelf.pinecones.map((pinecone) => renderShelfPinecone(pinecone, warehouse)).join("") : '<em class="empty-shelf">这里还没有松果</em>'}
+        </div>
       </div>
-      <p>${escapeHtml(shelf.description)}</p>
-      <div class="shelf-pinecones">
-        ${shelf.pinecones.length ? shelf.pinecones.map((pinecone) => renderShelfPinecone(pinecone, warehouse)).join("") : '<em class="empty-shelf">这里还没有松果</em>'}
-      </div>
-    </section>
+    </details>
   `;
 }
-
 function renderShelfPinecone(pinecone, warehouse) {
   const isEditing = state.editingPineconeId === pinecone.id;
   return `
