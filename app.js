@@ -396,10 +396,10 @@ function renderToolbar() {
   return `
     <div class="document-toolbar-tab">
       <footer class="bottom-toolbar" data-toolbar>
-        ${asset("squirrel-toolbar-perched.png", "toolbar-mascot")}
-        <button type="button" data-action="toggle-add">${icons.plus("toolbar-img add")}<b>添加松果</b></button>
-        <button type="button" data-action="toggle-document-edit">${icons.book("toolbar-img")}<b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
-        <button type="button" data-action="reorganize">${icons.leaf("toolbar-img")}<b>全部重新整理</b></button>
+        ${asset("squirrel-toolbar-perched-v2.png", "toolbar-mascot")}
+        <button type="button" data-action="toggle-add"><span class="toolbar-icon-box">${icons.plus("toolbar-img add")}</span><b>添加松果</b></button>
+        <button type="button" data-action="toggle-document-edit"><span class="toolbar-icon-box">${icons.book("toolbar-img")}</span><b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
+        <button type="button" data-action="reorganize"><span class="toolbar-icon-box">${icons.leaf("toolbar-img")}</span><b>全部重新整理</b></button>
       </footer>
     </div>
   `;

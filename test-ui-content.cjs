@@ -45,7 +45,8 @@ const expectations = [
   ["approved shelf icon", "pinecone-shelf-icon.png"],
   ["approved pinecone icon", "pinecone-icon.png"],
   ["document warehouse icon", "asset(\"pinecone-warehouse-icon.png\", \"book-icon\")"],
-  ["toolbar perched mascot png", "asset(\"squirrel-toolbar-perched.png\", \"toolbar-mascot\")"],
+  ["toolbar perched mascot png v2", "asset(\"squirrel-toolbar-perched-v2.png\", \"toolbar-mascot\")"],
+  ["toolbar icon box", "toolbar-icon-box"],
   ["shelf tab pinecone png", "icons.pinecone(\"shelf-tab-pinecone\")"],
   ["warehouse delete action", "data-action=\"delete-warehouse\""],
   ["warehouse empty state", "renderEmptyWarehouseState"],
@@ -122,6 +123,7 @@ const forbidden = [
   ["toolbar collapse control", ".toolbar-collapse"],
   ["collapsed toolbar style", ".bottom-toolbar.collapsed"],
   ["collapsed toolbar orb", ".toolbar-orb"],
+  ["old toolbar perched mascot", "asset(\"squirrel-toolbar-perched.png\", \"toolbar-mascot\")"],
 ];
 
 const requiredAssets = [
@@ -130,6 +132,7 @@ const requiredAssets = [
   "assets/illustrations/pinecone-icon.png",
   "assets/illustrations/squirrel-wencang-logo-ip.png",
   "assets/illustrations/squirrel-toolbar-perched.png",
+  "assets/illustrations/squirrel-toolbar-perched-v2.png",
 ];
 
 const missing = expectations.filter(([, needle]) => !appSource.includes(needle));
@@ -199,17 +202,34 @@ const toolbarMascotCssSource = cssSource.slice(
   toolbarMascotRuleStart,
   cssSource.indexOf(".toolbar-img", toolbarMascotRuleStart),
 );
+const toolbarButtonCssSource = cssSource.slice(
+  cssSource.indexOf(".bottom-toolbar button {"),
+  cssSource.indexOf(".bottom-toolbar button:last-child"),
+);
+const toolbarIconBoxCssSource = cssSource.slice(
+  cssSource.indexOf(".toolbar-icon-box {"),
+  cssSource.indexOf(".toolbar-img {"),
+);
 [
   ["Toolbar does not sit in the document tab container", expandedToolbarCssSource, "position: relative"],
   ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
   ["Toolbar does not use a stable three-column layout", expandedToolbarCssSource, "grid-template-columns: repeat(3, minmax(132px, 1fr))"],
   ["Perched mascot is not positioned near the toolbar's right fifth", toolbarMascotCssSource, "left: 80%"],
   ["Perched mascot is not centered on its positioning anchor", toolbarMascotCssSource, "transform: translate(-50%, -72%)"],
+  ["Toolbar copy does not use the upright body font", toolbarButtonCssSource, "font-family: var(--font-body)"],
+  ["Toolbar copy can still wrap", toolbarButtonCssSource, "white-space: nowrap"],
+  ["Toolbar content is not vertically centered", toolbarButtonCssSource, "align-items: center"],
+  ["Toolbar icon box does not use a fixed 38px width", toolbarIconBoxCssSource, "width: 38px"],
+  ["Toolbar icon box does not use a fixed 38px height", toolbarIconBoxCssSource, "height: 38px"],
+  ["Toolbar lacks a keyboard focus treatment", cssSource, ".bottom-toolbar button:focus-visible"],
 ].forEach(([failure, source, needle]) => {
   if (!source.includes(needle)) {
     toolbarFailures.push(failure);
   }
 });
+if (/\.toolbar-img[^}]*transform\s*:(?!\s*none\b)/s.test(cssSource)) {
+  toolbarFailures.push("Toolbar icons still use geometric transforms");
+}
 const warehouseDragSource = appSource.slice(
   appSource.indexOf("function bindWarehouseDragEvents()"),
   appSource.indexOf("function openIconPicker("),
