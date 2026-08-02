@@ -1102,8 +1102,12 @@ img {
   border-right: 0;
 }
 
-.bottom-toolbar button > * {
+.bottom-toolbar button .toolbar-icon-box {
   transform: translateY(-20px);
+}
+
+.bottom-toolbar button b {
+  transform: translateY(-10px);
 }
 
 .bottom-toolbar button:focus-visible {

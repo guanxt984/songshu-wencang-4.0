@@ -222,7 +222,9 @@ const toolbarIconBoxCssSource = cssSource.slice(
   ["Toolbar icon box does not use a fixed 38px width", toolbarIconBoxCssSource, "width: 38px"],
   ["Toolbar icon box does not use a fixed 38px height", toolbarIconBoxCssSource, "height: 38px"],
   ["Toolbar lacks a keyboard focus treatment", cssSource, ".bottom-toolbar button:focus-visible"],
-  ["Toolbar icons and copy are not raised by 20px", cssSource, "transform: translateY(-20px)"],
+  ["Toolbar icons are not raised by 20px", cssSource, ".toolbar-icon-box"],
+  ["Toolbar icons are not translated by 20px", cssSource, "transform: translateY(-20px)"],
+  ["Toolbar copy is not positioned 10px below the icons", cssSource, "transform: translateY(-10px)"],
 ].forEach(([failure, source, needle]) => {
   if (!source.includes(needle)) {
     toolbarFailures.push(failure);
