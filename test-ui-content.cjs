@@ -230,6 +230,20 @@ const toolbarIconBoxCssSource = cssSource.slice(
 if (/\.toolbar-img[^}]*transform\s*:(?!\s*none\b)/s.test(cssSource)) {
   toolbarFailures.push("Toolbar icons still use geometric transforms");
 }
+const narrowToolbarCssSource = cssSource.slice(
+  cssSource.indexOf("@media (max-width: 720px)"),
+);
+[
+  ["Narrow toolbar copy is too large for three horizontal columns", narrowToolbarCssSource, "font-size: 12px"],
+  ["Narrow toolbar gap is too large for three horizontal columns", narrowToolbarCssSource, "gap: 2px"],
+  ["Narrow toolbar icon box is not compact", narrowToolbarCssSource, "flex: 0 0 18px"],
+  ["Narrow toolbar icons are not compact", narrowToolbarCssSource, ".toolbar-img.add"],
+  ["Narrow toolbar buttons do not constrain horizontal padding", narrowToolbarCssSource, "padding: 0 2px"],
+].forEach(([failure, source, needle]) => {
+  if (!source.includes(needle)) {
+    toolbarFailures.push(failure);
+  }
+});
 const warehouseDragSource = appSource.slice(
   appSource.indexOf("function bindWarehouseDragEvents()"),
   appSource.indexOf("function openIconPicker("),

@@ -1493,8 +1493,21 @@ img {
 
   .bottom-toolbar button {
     min-height: 48px;
-    gap: 6px;
-    font-size: 14px;
+    gap: 2px;
+    padding: 0 2px;
+    font-size: 12px;
+  }
+
+  .toolbar-icon-box {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+  }
+
+  .toolbar-img,
+  .toolbar-img.add {
+    width: 18px;
+    height: 18px;
   }
 
   .toolbar-mascot {
