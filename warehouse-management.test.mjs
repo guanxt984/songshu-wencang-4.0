@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { removeWarehouse, reorderWarehouses } from "./warehouse-management.js";
+import { createEmptyWarehouseRecord, getWarehouseRecords, normalizeWarehouseState, removeWarehouse, removeWarehouseRecord, reorderWarehouses, reorderWarehouseRecords, useOnlyExampleWarehouses } from "./warehouse-management.js";
+import { EXAMPLE_COLLECTION_VERSION, exampleWarehouses } from "./example-warehouses.js";
 
 const ids = (items) => items.map((item) => item.id);
 const warehouses = [{ id: "a" }, { id: "b" }, { id: "c" }];
@@ -29,3 +30,168 @@ test("removeWarehouse selects next, then previous, and permits an empty list", (
     warehouses: [], activeWarehouseId: "", removed: true,
   });
 });
+
+test("normalizeWarehouseState separates each warehouse document shelves and pinecones by warehouse id", () => {
+  const legacy = {
+    version: 6,
+    activeWarehouseId: "a",
+    warehouses: [
+      {
+        id: "a",
+        name: "A",
+        updatedAt: "today",
+        tempLimit: 5,
+        iconDataUrl: "icon-a",
+        pinecones: [{ id: "pa", shelfId: "sa", content: "A pinecone" }],
+        shelves: [{ id: "sa", name: "Shelf A" }],
+        reviewDocument: { title: "Doc A", sections: [{ shelfId: "sa", heading: "A" }] },
+      },
+      {
+        id: "b",
+        name: "B",
+        updatedAt: "today",
+        tempLimit: 5,
+        pinecones: [{ id: "pb", shelfId: "sb", content: "B pinecone" }],
+        shelves: [{ id: "sb", name: "Shelf B" }],
+        reviewDocument: { title: "Doc B", sections: [{ shelfId: "sb", heading: "B" }] },
+      },
+    ],
+  };
+
+  const normalized = normalizeWarehouseState(legacy, 7);
+
+  assert.deepEqual(normalized.warehouses.order, ["a", "b"]);
+  assert.deepEqual(Object.keys(normalized.warehouses.byId), ["a", "b"]);
+  assert.equal(normalized.documents.byWarehouseId.a.title, "Doc A");
+  assert.equal(normalized.documents.byWarehouseId.b.title, "Doc B");
+  assert.deepEqual(normalized.shelves.byWarehouseId.a.map((shelf) => shelf.id), ["sa"]);
+  assert.deepEqual(normalized.shelves.byWarehouseId.b.map((shelf) => shelf.id), ["sb"]);
+  assert.deepEqual(normalized.pinecones.byWarehouseId.a.map((pinecone) => pinecone.id), ["pa"]);
+  assert.deepEqual(normalized.pinecones.byWarehouseId.b.map((pinecone) => pinecone.id), ["pb"]);
+  assert.equal(normalized.warehouses.byId.a.reviewDocument, undefined);
+  assert.equal(normalized.warehouses.byId.a.pinecones, undefined);
+});
+
+test("getWarehouseRecords hydrates isolated records without sharing nested data", () => {
+  const normalized = normalizeWarehouseState({
+    activeWarehouseId: "a",
+    warehouses: [
+      { id: "a", name: "A", pinecones: [{ id: "pa" }], shelves: [{ id: "sa" }], reviewDocument: { title: "A", sections: [] } },
+      { id: "b", name: "B", pinecones: [{ id: "pb" }], shelves: [{ id: "sb" }], reviewDocument: { title: "B", sections: [] } },
+    ],
+  }, 7);
+
+  const records = getWarehouseRecords(normalized);
+  records[0].pinecones.push({ id: "leak" });
+
+  assert.deepEqual(normalized.pinecones.byWarehouseId.a.map((pinecone) => pinecone.id), ["pa"]);
+  assert.deepEqual(records.map((record) => record.id), ["a", "b"]);
+});
+
+test("removeWarehouseRecord deletes warehouse scoped document shelves and pinecones", () => {
+  const normalized = normalizeWarehouseState({
+    activeWarehouseId: "a",
+    warehouses: [
+      { id: "a", name: "A", pinecones: [{ id: "pa" }], shelves: [{ id: "sa" }], reviewDocument: { title: "A", sections: [] } },
+      { id: "b", name: "B", pinecones: [{ id: "pb" }], shelves: [{ id: "sb" }], reviewDocument: { title: "B", sections: [] } },
+    ],
+  }, 7);
+
+  const result = removeWarehouseRecord(normalized, "a");
+
+  assert.equal(result.removed, true);
+  assert.equal(result.state.activeWarehouseId, "b");
+  assert.deepEqual(result.state.warehouses.order, ["b"]);
+  assert.equal(result.state.warehouses.byId.a, undefined);
+  assert.equal(result.state.documents.byWarehouseId.a, undefined);
+  assert.equal(result.state.shelves.byWarehouseId.a, undefined);
+  assert.equal(result.state.pinecones.byWarehouseId.a, undefined);
+  assert.equal(result.state.documents.byWarehouseId.b.title, "B");
+});
+
+test("createEmptyWarehouseRecord initializes independent empty document shelf and pinecone stores", () => {
+  const record = createEmptyWarehouseRecord("w1", "新仓", "今天 12:00 更新");
+
+  assert.equal(record.warehouse.id, "w1");
+  assert.equal(record.document.title, "新仓");
+  assert.deepEqual(record.shelves.map((shelf) => shelf.id), ["ideas"]);
+  assert.deepEqual(record.pinecones, []);
+  assert.equal(record.document.sections[0].shelfId, "ideas");
+});
+
+test("reorderWarehouseRecords only changes order metadata", () => {
+  const normalized = normalizeWarehouseState({
+    activeWarehouseId: "a",
+    warehouses: [
+      { id: "a", name: "A", pinecones: [], shelves: [], reviewDocument: { title: "A", sections: [] } },
+      { id: "b", name: "B", pinecones: [], shelves: [], reviewDocument: { title: "B", sections: [] } },
+      { id: "c", name: "C", pinecones: [], shelves: [], reviewDocument: { title: "C", sections: [] } },
+    ],
+  }, 7);
+
+  const next = reorderWarehouseRecords(normalized, "c", "a", "before");
+
+  assert.deepEqual(next.warehouses.order, ["c", "a", "b"]);
+  assert.equal(next.documents.byWarehouseId.a.title, "A");
+  assert.equal(next.documents.byWarehouseId.c.title, "C");
+});
+
+test("example warehouses preserve messy source fragments and produce structured documents", () => {
+  assert.deepEqual(exampleWarehouses.map((warehouse) => warehouse.name), ["《如何成为产品经理》", "《人性的弱点摘抄》"]);
+  assert.deepEqual(exampleWarehouses.map((warehouse) => warehouse.iconDataUrl), [
+    "assets/illustrations/warehouse-icon-product-manager.png",
+    "assets/illustrations/warehouse-icon-human-nature.png",
+  ]);
+
+  for (const warehouse of exampleWarehouses) {
+    assert.equal(warehouse.pinecones.length, 40);
+    assert.equal(warehouse.pinecones.filter((pinecone) => pinecone.status === "temp").length, 4);
+    assert.equal(warehouse.shelves.length, 6);
+    assert.equal(warehouse.reviewDocument.sections.length, 6);
+    assert.equal(warehouse.reviewDocument.sections.length, warehouse.shelves.length);
+    const shelfIds = new Set(warehouse.shelves.map((shelf) => shelf.id));
+    assert.ok(warehouse.pinecones.filter((pinecone) => pinecone.status === "shelved").every((pinecone) => shelfIds.has(pinecone.shelfId)));
+    assert.ok(warehouse.pinecones.every((pinecone) => !Object.hasOwn(pinecone, "title")));
+    const lengths = warehouse.pinecones.map((pinecone) => pinecone.content.length);
+    assert.ok(Math.min(...lengths) < 20);
+    assert.ok(Math.max(...lengths) > 80);
+    assert.ok(warehouse.reviewDocument.sections.every((section) => section.bullets.length > 0));
+  }
+});
+
+test("useOnlyExampleWarehouses replaces old warehouses once and preserves later user additions", () => {
+  const original = normalizeWarehouseState({
+    activeWarehouseId: "mine",
+    warehouses: [{ id: "mine", name: "我的仓", pinecones: [], shelves: [], reviewDocument: { title: "我的文档", sections: [] } }],
+  }, 7);
+
+  const examplesOnly = useOnlyExampleWarehouses(original, exampleWarehouses, EXAMPLE_COLLECTION_VERSION);
+  assert.deepEqual(examplesOnly.warehouses.order, ["example_product_manager", "example_human_nature"]);
+  assert.equal(examplesOnly.activeWarehouseId, "example_product_manager");
+  assert.equal(examplesOnly.warehouses.byId.mine, undefined);
+  assert.equal(examplesOnly.documents.byWarehouseId.mine, undefined);
+  assert.equal(examplesOnly.exampleCollectionVersion, EXAMPLE_COLLECTION_VERSION);
+
+  const withUserAddition = persistWarehouseRecordForTest(examplesOnly, {
+    id: "later",
+    name: "后来新建的仓",
+    updatedAt: "今天",
+    tempLimit: 5,
+    reviewDocument: { title: "后来新建的仓", sections: [] },
+    shelves: [],
+    pinecones: [],
+  });
+  const unchanged = useOnlyExampleWarehouses(withUserAddition, exampleWarehouses, EXAMPLE_COLLECTION_VERSION);
+  assert.ok(unchanged.warehouses.byId.later);
+});
+
+function persistWarehouseRecordForTest(state, record) {
+  const { reviewDocument, shelves, pinecones, ...warehouse } = record;
+  return {
+    ...state,
+    warehouses: { byId: { ...state.warehouses.byId, [record.id]: warehouse }, order: [...state.warehouses.order, record.id] },
+    documents: { byWarehouseId: { ...state.documents.byWarehouseId, [record.id]: reviewDocument } },
+    shelves: { byWarehouseId: { ...state.shelves.byWarehouseId, [record.id]: shelves } },
+    pinecones: { byWarehouseId: { ...state.pinecones.byWarehouseId, [record.id]: pinecones } },
+  };
+}

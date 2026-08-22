@@ -7,6 +7,7 @@ const indexSource = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 
 const expectations = [
   ["product title", "松鼠文仓"],
+  ["product subtitle", "把零散信息整理成结构化文档"],
   ["warehouse list", "松果仓列表"],
   ["add pinecone action", "添加松果"],
   ["temporary shelf option", "暂存栏"],
@@ -38,14 +39,14 @@ const expectations = [
   ["warehouse icon file input", "warehouse-icon-file"],
   ["crop offset control", "data-crop-input=\"offsetX\""],
   ["crop zoom control", "data-crop-input=\"zoom\""],
-  ["document toolbar tab", "document-toolbar-tab"],
+  ["document corner tools", "document-corner-tools"],
   ["toolbar save document copy", "保存文档"],
   ["toolbar full reorganize copy", "全部重新整理"],
   ["approved warehouse icon", "pinecone-warehouse-icon.png"],
   ["approved shelf icon", "pinecone-shelf-icon.png"],
   ["approved pinecone icon", "pinecone-icon.png"],
-  ["document warehouse icon", "asset(\"pinecone-warehouse-icon.png\", \"book-icon\")"],
-  ["toolbar perched mascot png v2", "asset(\"squirrel-toolbar-perched-v2.png\", \"toolbar-mascot\")"],
+  ["document warehouse icon follows active warehouse", "renderWarehouseIcon(warehouse).replace(\"warehouse-icon\", \"book-icon\")"],
+  ["document perched mascot png v2", 'class="document-mascot" src="assets/illustrations/squirrel-toolbar-perched-v2.png"'],
   ["toolbar icon box", "toolbar-icon-box"],
   ["shelf tab pinecone png", "icons.pinecone(\"shelf-tab-pinecone\")"],
   ["warehouse delete action", "data-action=\"delete-warehouse\""],
@@ -53,7 +54,10 @@ const expectations = [
   ["warehouse removal helper", "removeWarehouse"],
   ["warehouse card draggable", "draggable=\"true\""],
   ["warehouse drag binder", "bindWarehouseDragEvents"],
-  ["warehouse reorder helper", "reorderWarehouses"],
+  ["normalized warehouse state helper", "normalizeWarehouseState"],
+  ["warehouse record hydration helper", "hydrateWarehouseRecord"],
+  ["warehouse record persistence helper", "persistWarehouseRecord"],
+  ["warehouse record reorder helper", "reorderWarehouseRecords"],
   ["warehouse pointer initiation state", "warehouseDragStartedFromButton"],
   ["warehouse touch drag state", "touchWarehouseDrag"],
   ["warehouse delete confirmation", "仓内松果和整理文档会一并删除"],
@@ -64,31 +68,64 @@ const expectations = [
   ["warehouse dialog create action", "data-action=\"confirm-create-warehouse\""],
   ["warehouse dialog delete action", "data-action=\"confirm-delete-warehouse\""],
   ["shelf rows follow document sections", "warehouse.reviewDocument.sections.map"],
+  ["temporary shelf appears in rack", "isTemporary: true"],
   ["shelf title icon", "shelf-title-icon"],
-  ["compact expandable shelf row", '<details class="shelf-section"'],
+  ["shelf title row folds drawer", "class=\"shelf-title-row\" data-action=\"toggle-shelf\""],
+  ["flat shelf section row", '<section class="shelf-section'],
   ["small shelf count", "shelf-count"],
+  ["shelf level modify action", "toggle-shelf-actions"],
+  ["active shelf action state", "activeShelfActionId"],
+  ["pinecone render receives shelf action state", "renderShelfPinecone(pinecone, warehouse, isActionOpen)"],
+  ["toc jump action", "jumpToSection"],
+  ["toc buttons carry section index", "data-action=\"jump-section\""],
 ];
 
 const cssExpectations = [
   ["paper background", "--paper"],
   ["hand drawn card", ".document-card"],
   ["left panel", ".warehouse-panel"],
-  ["bottom toolbar", ".bottom-toolbar"],
-  ["document toolbar tab", ".document-toolbar-tab"],
+  ["document corner tools", ".document-corner-tools"],
+  ["document perched mascot", ".document-mascot"],
+  ["perched mascot nudged down five pixels", "top: -81px"],
+  ["perched mascot nudged right ten pixels", "right: 126px"],
+  ["pressable corner tool texture", ".corner-tool:active"],
   ["icon crop modal", ".icon-crop-modal"],
   ["editable document fields", ".editable-field"],
   ["add panel", ".add-panel"],
   ["shelf drawer", ".shelf-drawer"],
-  ["medium narrow shelf content", "width: 232px"],
+  ["large expanded shelf content", "width: min(760px, calc(100vw - 430px))"],
+  ["shelf bottom clears document bottom", "max-height: calc(100vh - 300px)"],
+  ["shelf drawer moved up forty pixels", "top: 96px"],
+  ["shelf drawer knows page edge gap", "--shelf-page-edge-offset: 43px"],
+  ["collapsed shelf main area stays outside viewport", "right: calc(-760px - var(--shelf-page-edge-offset))"],
+  ["mobile shelf page edge gap", "--shelf-page-edge-offset: 14px"],
+  ["sticky shelf rack header", "position: sticky"],
+  ["sticky shelf rack header top", "top: 0"],
+  ["integrated shelf rack header", "shelf-integrated-header"],
+  ["tighter shelf section spacing", ".shelf-rack-body {\n  gap: 8px;"],
   ["compact shelf rows", ".shelf-rack-body"],
   ["small shelf count type", ".shelf-count"],
+  ["spacious shelf rack", "Spacious pinecone rack"],
+  ["shelf modify button style", ".shelf-modify-button"],
+  ["pinecone action panel style", ".pinecone-action-panel"],
+  ["masonry pinecone layout", "column-count: 2"],
+  ["natural pinecone height", "break-inside: avoid"],
   ["small shelf title icon style", ".shelf-title-icon"],
   ["expanded shelf tab style is state scoped", ".shelf-drawer.open .shelf-tab"],
   ["expanded shelf tab icon style is state scoped", ".shelf-drawer.open .drawer-shelf-icon"],
-  ["collapsed shelf leaves the full original tab visible", "transform: translateX(232px)"],
-  ["expanded shelf hides the external handle", "display: none; /* expanded shelf handle */"],
+  ["collapsed shelf keeps only tag visible", "transform: translateX(0)"],
+  ["expanded shelf slides left to reveal main area", "transform: translateX(-760px)"],
+  ["shelf drawer slides as one piece", "transition: transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1)"],
+  ["shelf drawer keeps tab on the left", "flex-direction: row"],
+  ["expanded shelf tab keeps left edge radius", "border-radius: 28px 0 0 28px"],
+  ["expanded shelf tab keeps left-side border", "border-left: 2px solid rgba(171, 101, 27, 0.7)"],
+  ["shelf tab pinecone decoration hidden", ".shelf-tab-pinecone {\n  display: none;"],
+  ["expanded shelf tag remains visible", "display: grid; /* expanded shelf handle */"],
   ["shelf scroll track is visually hidden", "scrollbar-width: none"],
   ["webkit shelf scroll track is visually hidden", ".shelf-content::-webkit-scrollbar"],
+  ["document scroll enabled", "overflow-y: auto"],
+  ["document title underline removed", ".doc-title .custom-warehouse-icon"],
+  ["soft guide lines hidden", ".soft-lines"],
   ["warehouse delete button", ".warehouse-delete-button"],
   ["warehouse empty state", ".warehouse-empty-state"],
   ["warehouse dragging state", ".warehouse-card.dragging"],
@@ -102,6 +139,8 @@ const htmlExpectations = [
 
 const forbidden = [
   ["old product title", "枝枝笔记"],
+  ["old product subtitle", "把零散松果整理成可复盘的文档"],
+  ["top right icon actions", "top-actions"],
   ["old product logo asset", "squirrel-wencang-logo.png"],
   ["toolbar upload knowledge action", "上传知识条"],
   ["toolbar organize temporary action", "整理暂存"],
@@ -138,6 +177,11 @@ const forbidden = [
   ["collapsed toolbar style", ".bottom-toolbar.collapsed"],
   ["collapsed toolbar orb", ".toolbar-orb"],
   ["old toolbar perched mascot", "asset(\"squirrel-toolbar-perched.png\", \"toolbar-mascot\")"],
+  ["obsolete bottom toolbar", "bottom-toolbar"],
+  ["obsolete toolbar tab", "document-toolbar-tab"],
+  ["obsolete document search", "doc-search"],
+  ["obsolete featured action", "aria-label=\"精选\""],
+  ["obsolete more action", "aria-label=\"更多\""],
 ];
 
 const requiredAssets = [
@@ -201,56 +245,15 @@ if ((toolbarSource.match(/<button\b/g) || []).length !== 3) {
     toolbarFailures.push(`Forbidden toolbar action: ${action}`);
   }
 });
-if (toolbarSource.includes("toolbarPosition")) {
-  toolbarFailures.push("Toolbar still renders persisted floating position");
-}
-const expandedToolbarCssSource = cssSource.slice(
-  cssSource.indexOf(".bottom-toolbar {"),
-  cssSource.indexOf(".bottom-toolbar::before"),
-);
-if (expandedToolbarCssSource.includes("position: fixed")) {
-  toolbarFailures.push("Toolbar is still fixed to the viewport instead of the document area");
-}
-const toolbarMascotRuleStart = cssSource.indexOf(".toolbar-mascot {");
-const toolbarMascotCssSource = cssSource.slice(
-  toolbarMascotRuleStart,
-  cssSource.indexOf(".toolbar-img", toolbarMascotRuleStart),
-);
-const toolbarButtonCssSource = cssSource.slice(
-  cssSource.indexOf(".bottom-toolbar button {"),
-  cssSource.indexOf(".bottom-toolbar button:last-child"),
-);
-const toolbarIconBoxCssSource = cssSource.slice(
-  cssSource.indexOf(".toolbar-icon-box {"),
-  cssSource.indexOf(".toolbar-img {"),
-);
-const toolbarIconShiftCssSource = cssSource.slice(
-  cssSource.indexOf(".bottom-toolbar button .toolbar-icon-box {"),
-  cssSource.indexOf(".bottom-toolbar button b {"),
-);
-const toolbarLabelShiftCssSource = cssSource.slice(
-  cssSource.indexOf(".bottom-toolbar button b {"),
-  cssSource.indexOf(".bottom-toolbar button:focus-visible"),
-);
 [
-  ["Toolbar does not sit in the document tab container", expandedToolbarCssSource, "position: relative"],
-  ["Toolbar does not reserve space for the perched mascot", expandedToolbarCssSource, "padding-top: 12px"],
-  ["Toolbar does not use a stable three-column layout", expandedToolbarCssSource, "grid-template-columns: repeat(3, minmax(119.13px, 1fr))"],
-  ["Perched mascot is not positioned near the toolbar's right fifth", toolbarMascotCssSource, "left: 80%"],
-  ["Perched mascot is not lowered by 2px", toolbarMascotCssSource, "transform: translate(-50%, calc(-72% - 9px))"],
-  ["Toolbar copy does not use the upright body font", toolbarButtonCssSource, "font-family: var(--font-body)"],
-  ["Toolbar copy can still wrap", toolbarButtonCssSource, "white-space: nowrap"],
-  ["Toolbar content is not vertically centered", toolbarButtonCssSource, "align-items: center"],
-  ["Toolbar icon box is not reduced by another 5 percent in width", toolbarIconBoxCssSource, "width: 32.49px"],
-  ["Toolbar icon box is not reduced by another 5 percent in height", toolbarIconBoxCssSource, "height: 32.49px"],
-  ["Toolbar lacks a keyboard focus treatment", cssSource, ".bottom-toolbar button:focus-visible"],
-  ["Toolbar width is not reduced by another 5 percent", expandedToolbarCssSource, "width: min(577.6px, calc(90.25% - 50.54px))"],
-  ["Toolbar height is not reduced by another 10 percent", expandedToolbarCssSource, "min-height: 56.43px"],
-  ["Perched mascot is not reduced by another 5 percent", toolbarMascotCssSource, "width: 145.35px"],
-  ["Toolbar icons are not reduced by another 5 percent", toolbarIconBoxCssSource, "flex: 0 0 32.49px"],
-  ["Toolbar icons are not raised by 20px", cssSource, ".toolbar-icon-box"],
-  ["Toolbar icons are not shifted left by 5px", toolbarIconShiftCssSource, "transform: translate(-5px, -6px)"],
-  ["Toolbar copy is not shifted left by 5px", toolbarLabelShiftCssSource, "transform: translate(-5px, -6px)"],
+  ["Toolbar is not rendered as corner tools", toolbarSource, 'class="document-corner-tools"'],
+  ["Toolbar buttons do not expose compact labels", toolbarSource, 'class="corner-tool-label"'],
+  ["Perched mascot is not independent from the tools", toolbarSource, 'class="document-mascot"'],
+  ["Corner tools are not anchored to the document top right", cssSource, ".document-corner-tools {"],
+  ["Corner tool focus treatment is missing", cssSource, ".corner-tool:focus-visible"],
+  ["Document card still reserves excessive bottom toolbar space", cssSource, "padding: 34px 40px 34px"],
+  ["Document content does not use the full available height", cssSource, "height: calc(100% - 96px)"],
+  ["Document prose does not clear the bottom edge", cssSource, "padding: 0 74px 32px 34px"],
 ].forEach(([failure, source, needle]) => {
   if (!source.includes(needle)) {
     toolbarFailures.push(failure);
@@ -259,17 +262,29 @@ const toolbarLabelShiftCssSource = cssSource.slice(
 if (/\.toolbar-img[^}]*transform\s*:(?!\s*none\b)/s.test(cssSource)) {
   toolbarFailures.push("Toolbar icons still use geometric transforms");
 }
-const narrowToolbarCssSource = cssSource.slice(
-  cssSource.indexOf("@media (max-width: 720px)"),
+const toggleShelfSource = appSource.slice(
+  appSource.indexOf('if (action === "toggle-shelf")'),
+  appSource.indexOf('if (action === "add-pinecone")'),
+);
+if (!toggleShelfSource.includes("event.stopPropagation()")) {
+  toolbarFailures.push("Shelf toggle can still bubble and cancel itself");
+}
+if (!toggleShelfSource.includes("toggleShelfDrawer()")) {
+  toolbarFailures.push("Shelf toggle does not use the animated drawer switcher");
+}
+if (toggleShelfSource.includes("render()")) {
+  toolbarFailures.push("Shelf toggle still re-renders and skips the CSS transition");
+}
+const toggleShelfDrawerSource = appSource.slice(
+  appSource.indexOf("function toggleShelfDrawer()"),
+  appSource.indexOf("function jumpToSection("),
 );
 [
-  ["Narrow toolbar copy is too large for three horizontal columns", narrowToolbarCssSource, "font-size: 12px"],
-  ["Narrow toolbar gap is too large for three horizontal columns", narrowToolbarCssSource, "gap: 2px"],
-  ["Narrow toolbar icon box is not compact", narrowToolbarCssSource, "flex: 0 0 15.39px"],
-  ["Narrow toolbar icons are not compact", narrowToolbarCssSource, ".toolbar-img.add"],
-  ["Narrow toolbar buttons do not constrain horizontal padding", narrowToolbarCssSource, "padding: 0 2px"],
-].forEach(([failure, source, needle]) => {
-  if (!source.includes(needle)) {
+  ["Animated shelf switcher does not toggle state", "state.shelfOpen = !state.shelfOpen"],
+  ["Animated shelf switcher does not toggle the existing DOM node", "drawer?.classList.toggle(\"open\", state.shelfOpen)"],
+  ["Animated shelf switcher does not persist state", "saveState()"],
+].forEach(([failure, needle]) => {
+  if (!toggleShelfDrawerSource.includes(needle)) {
     toolbarFailures.push(failure);
   }
 });

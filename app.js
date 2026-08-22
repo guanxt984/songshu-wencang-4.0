@@ -1,4 +1,6 @@
-import { removeWarehouse, reorderWarehouses } from "./warehouse-management.js";
+import { createEmptyWarehouseRecord, getWarehouseRecords, hydrateWarehouseRecord, normalizeWarehouseState, persistWarehouseRecord, removeWarehouseRecord, reorderWarehouseRecords, useOnlyExampleWarehouses } from "./warehouse-management.js";
+import { EXAMPLE_COLLECTION_VERSION, exampleWarehouses } from "./example-warehouses.js";
+import { organizeWarehouseLocally } from "./organizer.js";
 
 const STORAGE_KEY = "squirrel-warehouse-mvp";
 const USE_API_ORGANIZER = false;
@@ -27,9 +29,11 @@ const icons = {
 const nowText = () => "今天 " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) + " 更新";
 const uid = (prefix) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
+const makeWechatProductWarehouse = () => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob("eyJpZCI6IndlY2hhdF9wcm9kdWN0X3BoaWxvc29waHkiLCJuYW1lIjoi44CK5b6u5L+h6IOM5ZCO55qE5Lqn5ZOB6KeC44CLIiwidXBkYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIOabtOaWsCIsInRlbXBMaW1pdCI6NSwicGluZWNvbmVzIjpbeyJpZCI6IndlY2hhdF9wMDFfMDEiLCJjb250ZW50Ijoi5Lqn5ZOB5bqU5YOP5LiA5Liq57O757uf77yM6ICM5LiN5piv5LiA5Liq5Yqf6IO95riF5Y2V44CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMDEiLCJ0YWdzIjpbIumHjeeCuSJdLCJpc0ZlYXR1cmVkIjp0cnVlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AwMV8wMiIsImNvbnRlbnQiOiLkuqflk4HopoHmnInoh6rlt7HnmoQgRE5B77yM5Lmf5bCx5piv5Lu35YC86KeC5ZKM6K6k55+l44CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMDEiLCJ0YWdzIjpbIuaRmOW9lSJdLCJpc0ZlYXR1cmVkIjpmYWxzZSwiY3JlYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIn0seyJpZCI6IndlY2hhdF9wMDFfMDMiLCJjb250ZW50Ijoi6Z2i5ZCR5pyq5p2l5ZKM5Zy65pmv6K6+6K6h77yM6ICM5LiN5piv5Y+q5ZON5bqU5b2T5YmN6ZyA5rGC44CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMDEiLCJ0YWdzIjpbIuaRmOW9lSJdLCJpc0ZlYXR1cmVkIjpmYWxzZSwiY3JlYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIn0seyJpZCI6IndlY2hhdF9wMDFfMDQiLCJjb250ZW50Ijoi5L2T6aqM44CB5rCU6LSo5ZKM5Lq65paH5oSP6K+G5q+U5aCG5Yqf6IO95pu06YeN6KaB44CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMDEiLCJ0YWdzIjpbIuaRmOW9lSJdLCJpc0ZlYXR1cmVkIjpmYWxzZSwiY3JlYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIn0seyJpZCI6IndlY2hhdF9wMDFfMDUiLCJjb250ZW50Ijoi5Lqn5ZOB57uP55CG6KaB55CG6Kej5Lq644CB5oul5oqx5LiN56Gu5a6a5oCn77yM5bm25oqK5Lqn5ZOB5b2T5L2c5ZOB6ZuV5Yi744CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMDEiLCJ0YWdzIjpbIuaRmOW9lSJdLCJpc0ZlYXR1cmVkIjpmYWxzZSwiY3JlYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIn0seyJpZCI6IndlY2hhdF9wMDJfMDEiLCJjb250ZW50Ijoi5Lqn5ZOB57uP55CG5LiN5Y+q5piv6K6+6K6h5Yqf6IO955qE5Lq677yM5pu05YOP5piv5Zyo5Yib6YCg5LiA5Liq5Y+v5Lul6Ieq6KGM6L+Q6L2s55qE57O757uf44CC5aW955qE5Lqn5ZOB5py65Yi26IO96K6p55So5oi36Ieq5bex5Y+R55Sf5pWF5LqL44CB6Ieq5bex5Yib6YCg5YaF5a6544CB6Ieq5bex5b2i5oiQ5L2/55So5pa55byP44CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMDIiLCJ0YWdzIjpbIumHjeeCuSJdLCJpc0ZlYXR1cmVkIjp0cnVlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AwM18wMSIsImNvbnRlbnQiOiLmlbTkvZPlkozosJDvvIzogIzkuI3mmK/nsr7npZ7liIboo4IiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8wMyIsInRhZ3MiOlsi6YeN54K5Il0sImlzRmVhdHVyZWQiOnRydWUsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDAzXzAyIiwiY29udGVudCI6Iue7k+aehOa4heaZsO+8jOWKn+iDveS5i+mXtOacieacuuiBlOezuyIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzAzIiwidGFncyI6WyLmkZjlvZUiXSwiaXNGZWF0dXJlZCI6ZmFsc2UsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDAzXzAzIiwiY29udGVudCI6IuWKn+iDveacieWKm+mHj++8jOWDj+S6uueahOiCjOiCiSIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzAzIiwidGFncyI6WyLmkZjlvZUiXSwiaXNGZWF0dXJlZCI6ZmFsc2UsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDAzXzA0IiwiY29udGVudCI6IuS6pOS6kueQhuaAp+OAgemAu+i+kea4healmuOAgeWPjeW6lOaVj+aNtyIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzAzIiwidGFncyI6WyLmkZjlvZUiXSwiaXNGZWF0dXJlZCI6ZmFsc2UsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDAzXzA1IiwiY29udGVudCI6IuaWh+ahiOW+l+S9k++8jOWDj+S4gOS4quS8muWlveWlveivtOivneeahOS6uiIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzAzIiwidGFncyI6WyLmkZjlvZUiXSwiaXNGZWF0dXJlZCI6ZmFsc2UsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDAzXzA2IiwiY29udGVudCI6IuiDjOWQjuacieeos+WumuS7t+WAvOingu+8jOiAjOS4jeaYr+maj+WKn+iDveaRh+aRhiIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzAzIiwidGFncyI6WyLmkZjlvZUiXSwiaXNGZWF0dXJlZCI6ZmFsc2UsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDA0XzAxIiwiY29udGVudCI6IuWBmuS6p+WTgeS4jeiDveWPquS+nei1luW3suacieaVsOaNruWSjOe7j+mqjOOAgumdouWvueacquadpeaXtu+8jOmcgOimgeaaguaXtuW/mOiusOaXp+S4lueVjOeahOaDr+aAp++8jOmHjeaWsOa0nuWvn+i2i+WKv++8jOaDs+ixoeacquadpeeUqOaIt+S8muWmguS9leS9v+eUqOS6p+WTge+8jOacquadpeeahOeJqeWTgeWSjOS6uuS8muWmguS9leS6pOS6kuOAgiIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzA0IiwidGFncyI6WyLph43ngrkiXSwiaXNGZWF0dXJlZCI6dHJ1ZSwiY3JlYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIn0seyJpZCI6IndlY2hhdF9wMDVfMDEiLCJjb250ZW50Ijoi5Lqn5ZOB6K6+6K6h6aaW5YWI5piv57uT5p6E6Zeu6aKY77yM54S25ZCO5omN5piv5Yqf6IO957uG6IqC44CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMDUiLCJ0YWdzIjpbIumHjeeCuSJdLCJpc0ZlYXR1cmVkIjp0cnVlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AwNl8wMSIsImNvbnRlbnQiOiLmuIXmmbDmmJPmh4LvvIzkvZPnjrDpgLvovpHmuIXmpZoiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8wNiIsInRhZ3MiOlsi6YeN54K5Il0sImlzRmVhdHVyZWQiOnRydWUsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDA2XzAyIiwiY29udGVudCI6IuS4jeaKrOmrmOiHquW3se+8jOaKiueUqOaIt+W9k+aci+WPiyIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzA2IiwidGFncyI6WyLmkZjlvZUiXSwiaXNGZWF0dXJlZCI6ZmFsc2UsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDA2XzAzIiwiY29udGVudCI6IuihqOi+vuato+ehru+8jOayoeacieatp+S5iSIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzA2IiwidGFncyI6WyLmkZjlvZUiXSwiaXNGZWF0dXJlZCI6ZmFsc2UsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDA2XzA0IiwiY29udGVudCI6IuWwvemHj+W8leeUqOeUqOaIt+iHquW3seeahOeUn+WKqOihqOi+viIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzA2IiwidGFncyI6WyLmkZjlvZUiXSwiaXNGZWF0dXJlZCI6ZmFsc2UsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDA3XzAxIiwiY29udGVudCI6IuS6p+WTgeacgOe7iOmdouWvueeahOaYr+S6uu+8jOiAjOS4jeaYr+aVsOaNruihqOmHjOeahOeUqOaIt+OAguS6p+WTgee7j+eQhumcgOimgemAj+i/h+aVsOaNrueci+WIsOS6uueahOS5oOaAp+OAgee+pOS9k+W/g+eQhuWSjOekvuS8muihjOS4uuOAgiIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzA3IiwidGFncyI6WyLph43ngrkiXSwiaXNGZWF0dXJlZCI6dHJ1ZSwiY3JlYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIn0seyJpZCI6IndlY2hhdF9wMDhfMDEiLCJjb250ZW50Ijoi6ZyA5rGC5LiN5piv5p2l6Ieq6LCD56CU44CB5YiG5p6Q44CB6K6o6K6677yM5pu05LiN5piv5p2l6Ieq56ue5LqJ5a+55omL77yM6ICM5piv5p2l6Ieq5a+555So5oi355qE5LqG6Kej44CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMDgiLCJ0YWdzIjpbIumHjeeCuSJdLCJpc0ZlYXR1cmVkIjp0cnVlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AwOV8wMSIsImNvbnRlbnQiOiLmj5Dpl67popjjgIHmjIfmiYvnlLvohJrlubbkuI3pmr7vvIzpmr7nmoTmmK/miorpl67popjmlbTnkIblh7rmnaXvvIzmib7liLDmnKzotKjjgIIiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8wOSIsInRhZ3MiOlsi6YeN54K5Il0sImlzRmVhdHVyZWQiOnRydWUsImNyZWF0ZWRBdCI6IuS7iuWkqSAxMjowMCJ9LHsiaWQiOiJ3ZWNoYXRfcDEwXzAxIiwiY29udGVudCI6IuS6p+WTgeS4jeaYr+WKn+iDvea4heWNle+8jOiAjOaYr+iDveiHquaIkea8lOWMlueahOezu+e7n+OAgiIsInN0YXR1cyI6InNoZWx2ZWQiLCJzaGVsZklkIjoid2VjaGF0XzEwIiwidGFncyI6WyLph43ngrkiXSwiaXNGZWF0dXJlZCI6dHJ1ZSwiY3JlYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIn0seyJpZCI6IndlY2hhdF9wMTBfMDIiLCJjb250ZW50Ijoi5Lqn5ZOB57uP55CG55qE5qC45b+D5bel5L2c5piv5Yib6YCg5py65Yi277yM6ICM5LiN5piv6KeE5YiS5omA5pyJ55So5oi36KGM5Li644CCIiwic3RhdHVzIjoic2hlbHZlZCIsInNoZWxmSWQiOiJ3ZWNoYXRfMTAiLCJ0YWdzIjpbIuaRmOW9lSJdLCJpc0ZlYXR1cmVkIjpmYWxzZSwiY3JlYXRlZEF0Ijoi5LuK5aSpIDEyOjAwIn0seyJpZCI6IndlY2hhdF9wMTBfMDMiLCJjb250ZW50Ijoi5Lqn5ZOB6KaB5pyJIEROQe+8jEROQSDmnaXoh6rku7flgLzop4LlkozorqTnn6XjgIIiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8xMCIsInRhZ3MiOlsi5pGY5b2VIl0sImlzRmVhdHVyZWQiOmZhbHNlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AxMF8wNCIsImNvbnRlbnQiOiLlpb3kuqflk4HmnInmsJTotKjvvIzlg4/kuIDkuKrpgLvovpHmuIXmpZrjgIHlj43lupTmlY/mjbfjgIHosIjlkJDlvpfkvZPnmoTkurrjgIIiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8xMCIsInRhZ3MiOlsi5pGY5b2VIl0sImlzRmVhdHVyZWQiOmZhbHNlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AxMF8wNSIsImNvbnRlbnQiOiLnu5PmnoTlhYjkuo7lip/og73vvIzliIbnsbvlkozmir3osaHlhrPlrprkuqflk4HmmK/lkKbmuIXmmbDjgIIiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8xMCIsInRhZ3MiOlsi5pGY5b2VIl0sImlzRmVhdHVyZWQiOmZhbHNlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AxMF8wNiIsImNvbnRlbnQiOiLpnIDmsYLmnaXoh6rlr7nnlKjmiLfjgIHml7bku6PlkoznlJ/mtLvmva7mtYHnmoTnkIbop6PvvIzkuI3mnaXoh6rnq57kuonlr7nmiYvjgIIiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8xMCIsInRhZ3MiOlsi5pGY5b2VIl0sImlzRmVhdHVyZWQiOmZhbHNlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AxMF8wNyIsImNvbnRlbnQiOiLkvZPpqozjgIHlk43lupTpgJ/luqbjgIHkurrmlofmhI/or4blkozlv4PnkIbmu6HotrPvvIzlvoDlvoDmr5Tlip/og73mlbDph4/mm7Tph43opoHjgIIiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8xMCIsInRhZ3MiOlsi5pGY5b2VIl0sImlzRmVhdHVyZWQiOmZhbHNlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AxMF8wOCIsImNvbnRlbnQiOiLlpb3orr7orqHmmK/op6PlhrPpl67popjvvJvlpI3mnYLmlrnmoYjluLjluLjmhI/lkbPnnYDpl67popjlrprkuYnplJnkuobjgIIiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8xMCIsInRhZ3MiOlsi5pGY5b2VIl0sImlzRmVhdHVyZWQiOmZhbHNlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifSx7ImlkIjoid2VjaGF0X3AxMF8wOSIsImNvbnRlbnQiOiLkuqflk4Hnu4/nkIbopoHnkIbop6PkurrmgKfjgIHmi6XmirHlj5jljJbjgIHkv53mjIHlpb3lpYfvvIzmiorkuqflk4HlvZPkvZzlk4HmiZPno6jjgIIiLCJzdGF0dXMiOiJzaGVsdmVkIiwic2hlbGZJZCI6IndlY2hhdF8xMCIsInRhZ3MiOlsi5pGY5b2VIl0sImlzRmVhdHVyZWQiOmZhbHNlLCJjcmVhdGVkQXQiOiLku4rlpKkgMTI6MDAifV0sInNoZWx2ZXMiOlt7ImlkIjoid2VjaGF0XzAxIiwibmFtZSI6IuaguOW/g+S4u+e6vyIsImRlc2NyaXB0aW9uIjoi6L+Z5om56LWE5paZ55qE5qC45b+D5LiN5piv5Zyo6K6y5p+Q5Liq5YW35L2T5Yqf6IO95oCO5LmI5YGa77yM6ICM5piv5Zyo6K6y5LiA56eN5Lqn5ZOB6KeC77ya5Lqn5ZOB5LiN5piv5Yqf6IO96ZuG5ZCI77yM6ICM5piv5LiA5Liq5Lya6Ieq5oiR5ryU5YyW55qE57O757uf44CC5Lqn5ZOB57uP55CG55qE5bel5L2c5LiN5piv5oqK5omA5pyJ6Lev5b6E6KeE5YiS5q2777yM6ICM5piv5Yib6YCg5py65Yi244CB5aGR6YCg5Lu35YC86KeC44CB55CG6Kej5Lq65oCn77yM5bm26K6p55So5oi35Zyo57O757uf5Lit6Ieq54S255Sf6ZW/5Ye65pWF5LqL44CCIn0seyJpZCI6IndlY2hhdF8wMiIsIm5hbWUiOiLkuqflk4HmmK/kuIDlpZfkvJroh6rmiJHmvJTljJbnmoTns7vnu58iLCJkZXNjcmlwdGlvbiI6IuS6p+WTgee7j+eQhuS4jeWPquaYr+iuvuiuoeWKn+iDveeahOS6uu+8jOabtOWDj+aYr+WcqOWIm+mAoOS4gOS4quWPr+S7peiHquihjOi/kOi9rOeahOezu+e7n+OAguWlveeahOS6p+WTgeacuuWItuiDveiuqeeUqOaIt+iHquW3seWPkeeUn+aVheS6i+OAgeiHquW3seWIm+mAoOWGheWuueOAgeiHquW3seW9ouaIkOS9v+eUqOaWueW8j+OAgiJ9LHsiaWQiOiJ3ZWNoYXRfMDMiLCJuYW1lIjoi5Lqn5ZOB6ZyA6KaBIEROQSDlkozngbXprYIiLCJkZXNjcmlwdGlvbiI6IuS6p+WTgeeJueaAp+W5tuS4jeaYr+e6r+WuouinguaOqOWvvOWHuuadpeeahO+8jOWug+iDjOWQjuacieW+iOW8uueahOS4u+inguS7t+WAvOinguOAguS6p+WTgee7j+eQhuWSjOWboumYn+ebuOS/oeS7gOS5iOOAgeWPjeWvueS7gOS5iOOAgeaDs+aUueWPmOS7gOS5iO+8jOS8muebtOaOpei/m+WFpeS6p+WTgeOAgiJ9LHsiaWQiOiJ3ZWNoYXRfMDQiLCJuYW1lIjoi6Z2i5ZCR5pyq5p2l77yM6ICM5LiN5piv5Y+q5ZON5bqU5b2T5YmN6ZyA5rGCIiwiZGVzY3JpcHRpb24iOiLlgZrkuqflk4HkuI3og73lj6rkvp3otZblt7LmnInmlbDmja7lkoznu4/pqozjgILpnaLlr7nmnKrmnaXml7bvvIzpnIDopoHmmoLml7blv5jorrDml6fkuJbnlYznmoTmg6/mgKfvvIzph43mlrDmtJ7lr5/otovlir/vvIzmg7PosaHmnKrmnaXnlKjmiLfkvJrlpoLkvZXkvb/nlKjkuqflk4HvvIzmnKrmnaXnmoTnianlk4HlkozkurrkvJrlpoLkvZXkuqTkupLjgIIifSx7ImlkIjoid2VjaGF0XzA1IiwibmFtZSI6IuWBmuS6p+WTgeeahOaWueazlSIsImRlc2NyaXB0aW9uIjoi5Lqn5ZOB6K6+6K6h6aaW5YWI5piv57uT5p6E6Zeu6aKY77yM54S25ZCO5omN5piv5Yqf6IO957uG6IqC44CCIn0seyJpZCI6IndlY2hhdF8wNiIsIm5hbWUiOiLkvZPpqozjgIHmlofmoYjkuI4gVUkiLCJkZXNjcmlwdGlvbiI6IuaTjeS9nOWTjeW6lOmAn+W6puawuOi/nOaYr+esrOS4gOS9k+mqjOOAguaKiueUqOaIt+S9k+mqjOWBmuWIsOaegeiHtO+8jOacrOi6q+WwseaYr+WIm+aWsOOAgiJ9LHsiaWQiOiJ3ZWNoYXRfMDciLCJuYW1lIjoi5Lq65oCn44CB5a2Y5Zyo5oSf5LiO55So5oi35b+D55CGIiwiZGVzY3JpcHRpb24iOiLkuqflk4HmnIDnu4jpnaLlr7nnmoTmmK/kurrvvIzogIzkuI3mmK/mlbDmja7ooajph4znmoTnlKjmiLfjgILkuqflk4Hnu4/nkIbpnIDopoHpgI/ov4fmlbDmja7nnIvliLDkurrnmoTkuaDmgKfjgIHnvqTkvZPlv4PnkIblkoznpL7kvJrooYzkuLrjgIIifSx7ImlkIjoid2VjaGF0XzA4IiwibmFtZSI6IumcgOaxguS7juWTqumHjOadpSIsImRlc2NyaXB0aW9uIjoi6ZyA5rGC5LiN5piv5p2l6Ieq6LCD56CU44CB5YiG5p6Q44CB6K6o6K6677yM5pu05LiN5piv5p2l6Ieq56ue5LqJ5a+55omL77yM6ICM5piv5p2l6Ieq5a+555So5oi355qE5LqG6Kej44CCIn0seyJpZCI6IndlY2hhdF8wOSIsIm5hbWUiOiLkuqflk4Hnu4/nkIbnmoTkv67lhbsiLCJkZXNjcmlwdGlvbiI6IuaPkOmXrumimOOAgeaMh+aJi+eUu+iEmuW5tuS4jemavu+8jOmavueahOaYr+aKiumXrumimOaVtOeQhuWHuuadpe+8jOaJvuWIsOacrOi0qOOAgiJ9LHsiaWQiOiJ3ZWNoYXRfMTAiLCJuYW1lIjoi5YWz6ZSu57uT6K66IiwiZGVzY3JpcHRpb24iOiLkuqflk4HkuI3mmK/lip/og73muIXljZXvvIzogIzmmK/og73oh6rmiJHmvJTljJbnmoTns7vnu5/jgIIifV0sInJldmlld0RvY3VtZW50Ijp7InRpdGxlIjoi44CK5b6u5L+h6IOM5ZCO55qE5Lqn5ZOB6KeC44CLIiwic2VjdGlvbnMiOlt7InNoZWxmSWQiOiJ3ZWNoYXRfMDEiLCJoZWFkaW5nIjoi5qC45b+D5Li757q/Iiwic3VtbWFyeSI6Iui/meaJuei1hOaWmeeahOaguOW/g+S4jeaYr+WcqOiusuafkOS4quWFt+S9k+WKn+iDveaAjuS5iOWBmu+8jOiAjOaYr+WcqOiusuS4gOenjeS6p+WTgeingu+8muS6p+WTgeS4jeaYr+WKn+iDvembhuWQiO+8jOiAjOaYr+S4gOS4quS8muiHquaIkea8lOWMlueahOezu+e7n+OAguS6p+WTgee7j+eQhueahOW3peS9nOS4jeaYr+aKiuaJgOaciei3r+W+hOinhOWIkuatu++8jOiAjOaYr+WIm+mAoOacuuWItuOAgeWhkemAoOS7t+WAvOinguOAgeeQhuino+S6uuaAp++8jOW5tuiuqeeUqOaIt+WcqOezu+e7n+S4reiHqueEtueUn+mVv+WHuuaVheS6i+OAgiIsImJ1bGxldHMiOlt7InRleHQiOiLkuqflk4HlupTlg4/kuIDkuKrns7vnu5/vvIzogIzkuI3mmK/kuIDkuKrlip/og73muIXljZXjgIIiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDAxXzAxIl19LHsidGV4dCI6IuS6p+WTgeimgeacieiHquW3seeahCBETkHvvIzkuZ/lsLHmmK/ku7flgLzop4LlkozorqTnn6XjgIIiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDAxXzAyIl19LHsidGV4dCI6IumdouWQkeacquadpeWSjOWcuuaZr+iuvuiuoe+8jOiAjOS4jeaYr+WPquWTjeW6lOW9k+WJjemcgOaxguOAgiIsInBpbmVjb25lSWRzIjpbIndlY2hhdF9wMDFfMDMiXX0seyJ0ZXh0Ijoi5L2T6aqM44CB5rCU6LSo5ZKM5Lq65paH5oSP6K+G5q+U5aCG5Yqf6IO95pu06YeN6KaB44CCIiwicGluZWNvbmVJZHMiOlsid2VjaGF0X3AwMV8wNCJdfSx7InRleHQiOiLkuqflk4Hnu4/nkIbopoHnkIbop6PkurrjgIHmi6XmirHkuI3noa7lrprmgKfvvIzlubbmiorkuqflk4HlvZPkvZzlk4Hpm5XliLvjgIIiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDAxXzA1Il19XX0seyJzaGVsZklkIjoid2VjaGF0XzAyIiwiaGVhZGluZyI6IuS6p+WTgeaYr+S4gOWll+S8muiHquaIkea8lOWMlueahOezu+e7nyIsInN1bW1hcnkiOiLkuqflk4Hnu4/nkIbkuI3lj6rmmK/orr7orqHlip/og73nmoTkurrvvIzmm7Tlg4/mmK/lnKjliJvpgKDkuIDkuKrlj6/ku6Xoh6rooYzov5DovaznmoTns7vnu5/jgILlpb3nmoTkuqflk4HmnLrliLbog73orqnnlKjmiLfoh6rlt7Hlj5HnlJ/mlYXkuovjgIHoh6rlt7HliJvpgKDlhoXlrrnjgIHoh6rlt7HlvaLmiJDkvb/nlKjmlrnlvI/jgIIiLCJidWxsZXRzIjpbeyJ0ZXh0Ijoi5Lqn5ZOB57uP55CG5LiN5Y+q5piv6K6+6K6h5Yqf6IO955qE5Lq677yM5pu05YOP5piv5Zyo5Yib6YCg5LiA5Liq5Y+v5Lul6Ieq6KGM6L+Q6L2s55qE57O757uf44CC5aW955qE5Lqn5ZOB5py65Yi26IO96K6p55So5oi36Ieq5bex5Y+R55Sf5pWF5LqL44CB6Ieq5bex5Yib6YCg5YaF5a6544CB6Ieq5bex5b2i5oiQ5L2/55So5pa55byP44CCIiwicGluZWNvbmVJZHMiOlsid2VjaGF0X3AwMl8wMSJdfV19LHsic2hlbGZJZCI6IndlY2hhdF8wMyIsImhlYWRpbmciOiLkuqflk4HpnIDopoEgRE5BIOWSjOeBtemtgiIsInN1bW1hcnkiOiLkuqflk4HnibnmgKflubbkuI3mmK/nuq/lrqLop4Lmjqjlr7zlh7rmnaXnmoTvvIzlroPog4zlkI7mnInlvojlvLrnmoTkuLvop4Lku7flgLzop4LjgILkuqflk4Hnu4/nkIblkozlm6LpmJ/nm7jkv6Hku4DkuYjjgIHlj43lr7nku4DkuYjjgIHmg7PmlLnlj5jku4DkuYjvvIzkvJrnm7TmjqXov5vlhaXkuqflk4HjgIIiLCJidWxsZXRzIjpbeyJ0ZXh0Ijoi5pW05L2T5ZKM6LCQ77yM6ICM5LiN5piv57K+56We5YiG6KOCIiwicGluZWNvbmVJZHMiOlsid2VjaGF0X3AwM18wMSJdfSx7InRleHQiOiLnu5PmnoTmuIXmmbDvvIzlip/og73kuYvpl7TmnInmnLrogZTns7siLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDAzXzAyIl19LHsidGV4dCI6IuWKn+iDveacieWKm+mHj++8jOWDj+S6uueahOiCjOiCiSIsInBpbmVjb25lSWRzIjpbIndlY2hhdF9wMDNfMDMiXX0seyJ0ZXh0Ijoi5Lqk5LqS55CG5oCn44CB6YC76L6R5riF5qWa44CB5Y+N5bqU5pWP5o23IiwicGluZWNvbmVJZHMiOlsid2VjaGF0X3AwM18wNCJdfSx7InRleHQiOiLmlofmoYjlvpfkvZPvvIzlg4/kuIDkuKrkvJrlpb3lpb3or7Tor53nmoTkuroiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDAzXzA1Il19LHsidGV4dCI6IuiDjOWQjuacieeos+WumuS7t+WAvOingu+8jOiAjOS4jeaYr+maj+WKn+iDveaRh+aRhiIsInBpbmVjb25lSWRzIjpbIndlY2hhdF9wMDNfMDYiXX1dfSx7InNoZWxmSWQiOiJ3ZWNoYXRfMDQiLCJoZWFkaW5nIjoi6Z2i5ZCR5pyq5p2l77yM6ICM5LiN5piv5Y+q5ZON5bqU5b2T5YmN6ZyA5rGCIiwic3VtbWFyeSI6IuWBmuS6p+WTgeS4jeiDveWPquS+nei1luW3suacieaVsOaNruWSjOe7j+mqjOOAgumdouWvueacquadpeaXtu+8jOmcgOimgeaaguaXtuW/mOiusOaXp+S4lueVjOeahOaDr+aAp++8jOmHjeaWsOa0nuWvn+i2i+WKv++8jOaDs+ixoeacquadpeeUqOaIt+S8muWmguS9leS9v+eUqOS6p+WTge+8jOacquadpeeahOeJqeWTgeWSjOS6uuS8muWmguS9leS6pOS6kuOAgiIsImJ1bGxldHMiOlt7InRleHQiOiLlgZrkuqflk4HkuI3og73lj6rkvp3otZblt7LmnInmlbDmja7lkoznu4/pqozjgILpnaLlr7nmnKrmnaXml7bvvIzpnIDopoHmmoLml7blv5jorrDml6fkuJbnlYznmoTmg6/mgKfvvIzph43mlrDmtJ7lr5/otovlir/vvIzmg7PosaHmnKrmnaXnlKjmiLfkvJrlpoLkvZXkvb/nlKjkuqflk4HvvIzmnKrmnaXnmoTnianlk4HlkozkurrkvJrlpoLkvZXkuqTkupLjgIIiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDA0XzAxIl19XX0seyJzaGVsZklkIjoid2VjaGF0XzA1IiwiaGVhZGluZyI6IuWBmuS6p+WTgeeahOaWueazlSIsInN1bW1hcnkiOiLkuqflk4Horr7orqHpppblhYjmmK/nu5PmnoTpl67popjvvIznhLblkI7miY3mmK/lip/og73nu4boioLjgIIiLCJidWxsZXRzIjpbeyJ0ZXh0Ijoi5Lqn5ZOB6K6+6K6h6aaW5YWI5piv57uT5p6E6Zeu6aKY77yM54S25ZCO5omN5piv5Yqf6IO957uG6IqC44CCIiwicGluZWNvbmVJZHMiOlsid2VjaGF0X3AwNV8wMSJdfV19LHsic2hlbGZJZCI6IndlY2hhdF8wNiIsImhlYWRpbmciOiLkvZPpqozjgIHmlofmoYjkuI4gVUkiLCJzdW1tYXJ5Ijoi5pON5L2c5ZON5bqU6YCf5bqm5rC46L+c5piv56ys5LiA5L2T6aqM44CC5oqK55So5oi35L2T6aqM5YGa5Yiw5p6B6Ie077yM5pys6Lqr5bCx5piv5Yib5paw44CCIiwiYnVsbGV0cyI6W3sidGV4dCI6Iua4heaZsOaYk+aHgu+8jOS9k+eOsOmAu+i+kea4healmiIsInBpbmVjb25lSWRzIjpbIndlY2hhdF9wMDZfMDEiXX0seyJ0ZXh0Ijoi5LiN5oqs6auY6Ieq5bex77yM5oqK55So5oi35b2T5pyL5Y+LIiwicGluZWNvbmVJZHMiOlsid2VjaGF0X3AwNl8wMiJdfSx7InRleHQiOiLooajovr7mraPnoa7vvIzmsqHmnInmrafkuYkiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDA2XzAzIl19LHsidGV4dCI6IuWwvemHj+W8leeUqOeUqOaIt+iHquW3seeahOeUn+WKqOihqOi+viIsInBpbmVjb25lSWRzIjpbIndlY2hhdF9wMDZfMDQiXX1dfSx7InNoZWxmSWQiOiJ3ZWNoYXRfMDciLCJoZWFkaW5nIjoi5Lq65oCn44CB5a2Y5Zyo5oSf5LiO55So5oi35b+D55CGIiwic3VtbWFyeSI6IuS6p+WTgeacgOe7iOmdouWvueeahOaYr+S6uu+8jOiAjOS4jeaYr+aVsOaNruihqOmHjOeahOeUqOaIt+OAguS6p+WTgee7j+eQhumcgOimgemAj+i/h+aVsOaNrueci+WIsOS6uueahOS5oOaAp+OAgee+pOS9k+W/g+eQhuWSjOekvuS8muihjOS4uuOAgiIsImJ1bGxldHMiOlt7InRleHQiOiLkuqflk4HmnIDnu4jpnaLlr7nnmoTmmK/kurrvvIzogIzkuI3mmK/mlbDmja7ooajph4znmoTnlKjmiLfjgILkuqflk4Hnu4/nkIbpnIDopoHpgI/ov4fmlbDmja7nnIvliLDkurrnmoTkuaDmgKfjgIHnvqTkvZPlv4PnkIblkoznpL7kvJrooYzkuLrjgIIiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDA3XzAxIl19XX0seyJzaGVsZklkIjoid2VjaGF0XzA4IiwiaGVhZGluZyI6IumcgOaxguS7juWTqumHjOadpSIsInN1bW1hcnkiOiLpnIDmsYLkuI3mmK/mnaXoh6rosIPnoJTjgIHliIbmnpDjgIHorqjorrrvvIzmm7TkuI3mmK/mnaXoh6rnq57kuonlr7nmiYvvvIzogIzmmK/mnaXoh6rlr7nnlKjmiLfnmoTkuobop6PjgIIiLCJidWxsZXRzIjpbeyJ0ZXh0Ijoi6ZyA5rGC5LiN5piv5p2l6Ieq6LCD56CU44CB5YiG5p6Q44CB6K6o6K6677yM5pu05LiN5piv5p2l6Ieq56ue5LqJ5a+55omL77yM6ICM5piv5p2l6Ieq5a+555So5oi355qE5LqG6Kej44CCIiwicGluZWNvbmVJZHMiOlsid2VjaGF0X3AwOF8wMSJdfV19LHsic2hlbGZJZCI6IndlY2hhdF8wOSIsImhlYWRpbmciOiLkuqflk4Hnu4/nkIbnmoTkv67lhbsiLCJzdW1tYXJ5Ijoi5o+Q6Zeu6aKY44CB5oyH5omL55S76ISa5bm25LiN6Zq+77yM6Zq+55qE5piv5oqK6Zeu6aKY5pW055CG5Ye65p2l77yM5om+5Yiw5pys6LSo44CCIiwiYnVsbGV0cyI6W3sidGV4dCI6IuaPkOmXrumimOOAgeaMh+aJi+eUu+iEmuW5tuS4jemavu+8jOmavueahOaYr+aKiumXrumimOaVtOeQhuWHuuadpe+8jOaJvuWIsOacrOi0qOOAgiIsInBpbmVjb25lSWRzIjpbIndlY2hhdF9wMDlfMDEiXX1dfSx7InNoZWxmSWQiOiJ3ZWNoYXRfMTAiLCJoZWFkaW5nIjoi5YWz6ZSu57uT6K66Iiwic3VtbWFyeSI6IuS6p+WTgeS4jeaYr+WKn+iDvea4heWNle+8jOiAjOaYr+iDveiHquaIkea8lOWMlueahOezu+e7n+OAgiIsImJ1bGxldHMiOlt7InRleHQiOiLkuqflk4HkuI3mmK/lip/og73muIXljZXvvIzogIzmmK/og73oh6rmiJHmvJTljJbnmoTns7vnu5/jgIIiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDEwXzAxIl19LHsidGV4dCI6IuS6p+WTgee7j+eQhueahOaguOW/g+W3peS9nOaYr+WIm+mAoOacuuWItu+8jOiAjOS4jeaYr+inhOWIkuaJgOacieeUqOaIt+ihjOS4uuOAgiIsInBpbmVjb25lSWRzIjpbIndlY2hhdF9wMTBfMDIiXX0seyJ0ZXh0Ijoi5Lqn5ZOB6KaB5pyJIEROQe+8jEROQSDmnaXoh6rku7flgLzop4LlkozorqTnn6XjgIIiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDEwXzAzIl19LHsidGV4dCI6IuWlveS6p+WTgeacieawlOi0qO+8jOWDj+S4gOS4qumAu+i+kea4healmuOAgeWPjeW6lOaVj+aNt+OAgeiwiOWQkOW+l+S9k+eahOS6uuOAgiIsInBpbmVjb25lSWRzIjpbIndlY2hhdF9wMTBfMDQiXX0seyJ0ZXh0Ijoi57uT5p6E5YWI5LqO5Yqf6IO977yM5YiG57G75ZKM5oq96LGh5Yaz5a6a5Lqn5ZOB5piv5ZCm5riF5pmw44CCIiwicGluZWNvbmVJZHMiOlsid2VjaGF0X3AxMF8wNSJdfSx7InRleHQiOiLpnIDmsYLmnaXoh6rlr7nnlKjmiLfjgIHml7bku6PlkoznlJ/mtLvmva7mtYHnmoTnkIbop6PvvIzkuI3mnaXoh6rnq57kuonlr7nmiYvjgIIiLCJwaW5lY29uZUlkcyI6WyJ3ZWNoYXRfcDEwXzA2Il19XX1dfX0="), (char) => char.charCodeAt(0))));
+
 const initialState = {
-  version: 5,
-  activeWarehouseId: "interview",
+  version: 7,
+  activeWarehouseId: "wechat_product_philosophy",
   query: "",
   shelfOpen: false,
   addOpen: false,
@@ -40,11 +44,14 @@ const initialState = {
   newShelfName: "",
   shelfQuery: "",
   editingPineconeId: null,
+  activeShelfActionId: null,
   referenceIds: [],
   iconCrop: null,
   warehouseDialog: null,
   toast: "",
   warehouses: [
+    makeWechatProductWarehouse(),
+    ...exampleWarehouses,
     {
       id: "interview",
       name: "面试经验整理",
@@ -199,26 +206,34 @@ function makeWarehouse(id, name, updatedAt, contents) {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (saved?.version === initialState.version && Array.isArray(saved?.warehouses)) {
-      return {
-        ...initialState,
-        ...saved,
-        toast: "",
-        referenceIds: [],
-        newPineconeText: "",
-        addDestination: "temp",
-        selectedShelfId: "",
-        newShelfName: "",
-        shelfQuery: "",
-        editingPineconeId: null,
-        warehouseDialog: null,
-      };
-    }
+    const normalized = normalizeWarehouseState(saved || initialState, initialState.version);
+    const migrated = useOnlyExampleWarehouses(normalized, exampleWarehouses, EXAMPLE_COLLECTION_VERSION);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+    return resetTransientState(migrated);
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  return structuredClone(initialState);
+  const normalized = normalizeWarehouseState(initialState, initialState.version);
+  const migrated = useOnlyExampleWarehouses(normalized, exampleWarehouses, EXAMPLE_COLLECTION_VERSION);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+  return resetTransientState(migrated);
+}
+
+function resetTransientState(nextState) {
+  return {
+    ...nextState,
+    toast: "",
+    referenceIds: [],
+    newPineconeText: "",
+    addDestination: "temp",
+    selectedShelfId: "",
+    newShelfName: "",
+    shelfQuery: "",
+    editingPineconeId: null,
+    activeShelfActionId: null,
+    warehouseDialog: null,
+  };
 }
 
 function saveState() {
@@ -227,6 +242,7 @@ function saveState() {
     referenceIds: _referenceIds,
     iconCrop: _iconCrop,
     editMode: _editMode,
+    activeShelfActionId: _activeShelfActionId,
     warehouseDialog: _warehouseDialog,
     ...persisted
   } = state;
@@ -234,9 +250,17 @@ function saveState() {
 }
 
 function getActiveWarehouse() {
-  return state.warehouses.find((warehouse) => warehouse.id === state.activeWarehouseId)
-    || state.warehouses[0]
+  return hydrateWarehouseRecord(state, state.activeWarehouseId)
+    || getWarehouseList()[0]
     || null;
+}
+
+function getWarehouseList() {
+  return getWarehouseRecords(state);
+}
+
+function commitWarehouse(warehouse) {
+  state = persistWarehouseRecord(state, warehouse);
 }
 
 function render() {
@@ -258,12 +282,8 @@ function render() {
           ${icons.logo("brand-squirrel")}
           <div>
             <h1>松鼠文仓</h1>
-            <p>把零散松果整理成可复盘的文档 ${icons.leaf("brand-leaf")}</p>
+            <p>把零散信息整理成结构化文档 ${icons.leaf("brand-leaf")}</p>
           </div>
-        </div>
-        <div class="top-actions">
-          <button class="round-button" type="button" data-action="focus-search" aria-label="搜索">${icons.search("icon-img")}</button>
-          <button class="round-button" type="button" aria-label="账户">${icons.user("icon-img")}</button>
         </div>
       </header>
 
@@ -273,7 +293,7 @@ function render() {
           <button class="icon-button green" type="button" data-action="create-warehouse" aria-label="新建松果仓">${icons.plus("icon-img")}</button>
         </div>
         <div class="warehouse-list">
-          ${state.warehouses.map(renderWarehouseCard).join("")}
+          ${getWarehouseList().map(renderWarehouseCard).join("")}
         </div>
       </aside>
 
@@ -281,20 +301,12 @@ function render() {
         <section class="document-card">
           <header class="doc-head">
             <div class="doc-title">
-              ${asset("pinecone-warehouse-icon.png", "book-icon")}
+              ${renderWarehouseIcon(warehouse).replace("warehouse-icon", "book-icon")}
               <div>
                 <h2>${escapeHtml(warehouse.reviewDocument.title)}</h2>
-                <div class="title-underline"></div>
               </div>
             </div>
-            <div class="doc-actions">
-              <label class="search-box">
-                ${icons.search("search-icon")}
-                <input id="doc-search" type="search" placeholder="搜索文档内容..." value="${escapeHtml(state.query)}" data-input="search">
-              </label>
-              <button class="tool-button" type="button" aria-label="精选">${icons.star("tool-img")}</button>
-              <button class="tool-button" type="button" aria-label="更多">${icons.more("tool-img more")}</button>
-            </div>
+            ${renderToolbar()}
             <div class="chips">
               <span>${icons.book("chip-img")} ${warehouse.reviewDocument.sections.length} 个章节</span>
               <span>${icons.star("chip-img")} ${featuredCount} 颗精选松果</span>
@@ -309,7 +321,7 @@ function render() {
             <nav class="toc" aria-label="目录">
               <h3>目录</h3>
               ${warehouse.reviewDocument.sections.map((section, index) => `
-                <button class="${index === 0 ? "active" : ""}" type="button">
+                <button class="${index === 0 ? "active" : ""}" type="button" data-action="jump-section" data-section-index="${index}">
                   <span>${index + 1}. ${escapeHtml(section.heading)}</span>
                   ${index === 0 ? "<b></b>" : ""}
                 </button>
@@ -323,7 +335,6 @@ function render() {
           ${state.addOpen ? renderAddPanel(warehouse) : ""}
           ${renderShelfDrawer(warehouse)}
 
-          ${renderToolbar()}
         </section>
       </main>
     </section>
@@ -345,7 +356,7 @@ function renderEmptyWarehouseState() {
           ${icons.logo("brand-squirrel")}
           <div>
             <h1>松鼠文仓</h1>
-            <p>把零散松果整理成可复盘的文档 ${icons.leaf("brand-leaf")}</p>
+          <p>把零散信息整理成结构化文档 ${icons.leaf("brand-leaf")}</p>
           </div>
         </div>
       </header>
@@ -394,14 +405,12 @@ function renderShelfIcon(className) {
 
 function renderToolbar() {
   return `
-    <div class="document-toolbar-tab">
-      <footer class="bottom-toolbar" data-toolbar>
-        ${asset("squirrel-toolbar-perched-v2.png", "toolbar-mascot")}
-        <button type="button" data-action="toggle-add"><span class="toolbar-icon-box">${icons.plus("toolbar-img add")}</span><b>添加松果</b></button>
-        <button type="button" data-action="toggle-document-edit"><span class="toolbar-icon-box">${icons.book("toolbar-img")}</span><b>${state.editMode ? "保存文档" : "编辑文档"}</b></button>
-        <button type="button" data-action="reorganize"><span class="toolbar-icon-box">${icons.leaf("toolbar-img")}</span><b>全部重新整理</b></button>
-      </footer>
-    </div>
+    <img class="document-mascot" src="assets/illustrations/squirrel-toolbar-perched-v2.png" alt="" aria-hidden="true">
+    <nav class="document-corner-tools" aria-label="文档工具" data-toolbar>
+      <button class="corner-tool" type="button" data-action="toggle-add" aria-label="添加松果" title="添加松果"><span class="toolbar-icon-box">${icons.plus("toolbar-img add")}</span><span class="corner-tool-label">添加松果</span></button>
+      <button class="corner-tool" type="button" data-action="toggle-document-edit" aria-label="${state.editMode ? "保存文档" : "编辑文档"}" title="${state.editMode ? "保存文档" : "编辑文档"}"><span class="toolbar-icon-box">${icons.book("toolbar-img")}</span><span class="corner-tool-label">${state.editMode ? "保存文档" : "编辑文档"}</span></button>
+      <button class="corner-tool" type="button" data-action="reorganize" aria-label="全部重新整理" title="全部重新整理"><span class="toolbar-icon-box">${icons.leaf("toolbar-img")}</span><span class="corner-tool-label">重新整理</span></button>
+    </nav>
   `;
 }
 function renderIconCropModal() {
@@ -436,7 +445,7 @@ function renderWarehouseDialog() {
   const isCreate = dialog.type === "create";
   const warehouse = isCreate
     ? null
-    : state.warehouses.find((item) => item.id === dialog.warehouseId);
+    : hydrateWarehouseRecord(state, dialog.warehouseId);
   if (!isCreate && !warehouse) return "";
 
   return `
@@ -491,8 +500,7 @@ function renderReviewDocument(warehouse) {
         ${icons.leaf("section-leaf")}
       </h3>
       <p class="${state.editMode ? "editable-field" : ""}" ${state.editMode ? `contenteditable="true" data-edit-field="summary" data-section-index="${index}"` : ""}>${escapeHtml(section.summary)}</p>
-      ${index === 0 ? renderKeyBox(section, index) : ""}
-      <div class="soft-lines"><i></i><i></i><i></i></div>
+      ${section.bullets.length ? renderKeyBox(section, index) : ""}
     </section>
   `).join("");
 }
@@ -551,7 +559,19 @@ function renderAddPanel(warehouse) {
 
 function renderShelfDrawer(warehouse) {
   const query = state.shelfQuery.trim();
-  const shelves = warehouse.reviewDocument.sections.map((section) => {
+  const filterPinecones = (pinecones) => query
+    ? pinecones.filter((pinecone) => pinecone.content.includes(query))
+    : pinecones;
+  const tempPinecones = filterPinecones(warehouse.pinecones.filter((pinecone) => pinecone.status === "temp"));
+  const shelves = [
+    {
+      id: "temp",
+      name: "暂存栏",
+      description: "还没有整理进文档的原始松果，适合先集中查看、再移动到对应章节。",
+      pinecones: tempPinecones,
+      isTemporary: true,
+    },
+    ...warehouse.reviewDocument.sections.map((section) => {
     const shelf = warehouse.shelves.find((item) => item.id === section.shelfId);
     const pinecones = warehouse.pinecones.filter((pinecone) =>
       pinecone.status === "shelved" && pinecone.shelfId === section.shelfId,
@@ -560,9 +580,9 @@ function renderShelfDrawer(warehouse) {
       id: section.shelfId,
       name: section.heading,
       description: section.summary || shelf?.description || "",
-      pinecones: query ? pinecones.filter((pinecone) => pinecone.content.includes(query)) : pinecones,
+      pinecones: filterPinecones(pinecones),
     };
-  });
+  })];
 
   return `
     <aside class="shelf-drawer ${state.shelfOpen ? "open" : ""}">
@@ -572,8 +592,8 @@ function renderShelfDrawer(warehouse) {
         <span>松果架</span>
       </button>
       <div class="shelf-content">
-        <header class="shelf-rack-header">
-          <div class="shelf-title-row">
+        <header class="shelf-rack-header shelf-integrated-header">
+          <div class="shelf-title-row" data-action="toggle-shelf" role="button" tabindex="0" aria-label="收起松果架">
             ${renderShelfIcon("shelf-title-icon")}
             <h3>松果架</h3>
             <button class="shelf-close" type="button" data-action="toggle-shelf" aria-label="收起松果架">×</button>
@@ -591,25 +611,26 @@ function renderShelfDrawer(warehouse) {
 }
 
 function renderShelfSection(shelf, warehouse) {
+  const isActionOpen = state.activeShelfActionId === shelf.id || shelf.pinecones.some((pinecone) => state.editingPineconeId === pinecone.id);
   return `
-    <details class="shelf-section">
-      <summary>
+    <section class="shelf-section ${shelf.isTemporary ? "temporary-shelf-section" : ""}">
+      <header class="shelf-section-head">
         <span class="shelf-section-copy">
           <strong>${escapeHtml(shelf.name)}</strong>
-          <small class="shelf-count">${shelf.pinecones.length} 颗松果</small>
+          <small class="shelf-count">${shelf.pinecones.length} 颗松果${shelf.isTemporary ? " · 待整理" : ""}</small>
         </span>
-        <span class="shelf-chevron" aria-hidden="true">›</span>
-      </summary>
+        <button class="shelf-modify-button" type="button" data-action="toggle-shelf-actions" data-shelf-id="${shelf.id}" aria-expanded="${isActionOpen ? "true" : "false"}">修改</button>
+      </header>
       <div class="shelf-section-body">
         <p>${escapeHtml(shelf.description)}</p>
         <div class="shelf-pinecones">
-          ${shelf.pinecones.length ? shelf.pinecones.map((pinecone) => renderShelfPinecone(pinecone, warehouse)).join("") : '<em class="empty-shelf">这里还没有松果</em>'}
+          ${shelf.pinecones.length ? shelf.pinecones.map((pinecone) => renderShelfPinecone(pinecone, warehouse, isActionOpen)).join("") : '<em class="empty-shelf">这里还没有松果</em>'}
         </div>
       </div>
-    </details>
+    </section>
   `;
 }
-function renderShelfPinecone(pinecone, warehouse) {
+function renderShelfPinecone(pinecone, warehouse, isActionOpen) {
   const isEditing = state.editingPineconeId === pinecone.id;
   return `
     <article class="shelf-pinecone">
@@ -621,18 +642,19 @@ function renderShelfPinecone(pinecone, warehouse) {
         </div>
       ` : `
         <p>${escapeHtml(pinecone.content)}</p>
-        <time>${escapeHtml(pinecone.createdAt)}</time>
-        <label class="move-control">移动到
-          <select data-action="move-pinecone" data-pinecone-id="${pinecone.id}">
-            <option value="temp" ${pinecone.status === "temp" ? "selected" : ""}>暂存栏</option>
-            ${warehouse.shelves.map((shelf) => `<option value="${shelf.id}" ${pinecone.shelfId === shelf.id ? "selected" : ""}>${escapeHtml(shelf.name)}</option>`).join("")}
-          </select>
-        </label>
-        <div class="pinecone-actions">
+      `}
+      ${!isEditing && isActionOpen ? `
+        <div class="pinecone-actions pinecone-action-panel">
+          <label class="move-control">移动到
+            <select data-action="move-pinecone" data-pinecone-id="${pinecone.id}">
+              <option value="temp" ${pinecone.status === "temp" ? "selected" : ""}>暂存栏</option>
+              ${warehouse.shelves.map((shelf) => `<option value="${shelf.id}" ${pinecone.shelfId === shelf.id ? "selected" : ""}>${escapeHtml(shelf.name)}</option>`).join("")}
+            </select>
+          </label>
           <button type="button" data-action="edit-pinecone" data-pinecone-id="${pinecone.id}">编辑</button>
           <button type="button" data-action="delete-pinecone" data-pinecone-id="${pinecone.id}">删除</button>
         </div>
-      `}
+      ` : ""}
     </article>
   `;
 }
@@ -653,6 +675,8 @@ function bindEvents() {
       state.addOpen = false;
       state.editMode = false;
       state.iconCrop = null;
+      state.editingPineconeId = null;
+      state.activeShelfActionId = null;
       saveState();
       render();
     });
@@ -678,8 +702,8 @@ function bindEvents() {
         toggleDocumentEdit();
       }
       if (action === "toggle-shelf") {
-        state.shelfOpen = !state.shelfOpen;
-        render();
+        event.stopPropagation();
+        toggleShelfDrawer();
       }
       if (action === "add-pinecone") {
         addPinecone();
@@ -703,8 +727,8 @@ function bindEvents() {
       if (action === "confirm-delete-warehouse") {
         confirmDeleteWarehouse();
       }
-      if (action === "focus-search") {
-        document.querySelector("#doc-search")?.focus();
+      if (action === "jump-section") {
+        jumpToSection(Number(element.dataset.sectionIndex || 0));
       }
       if (action === "dismiss-notice") {
         showToast("新松果会继续留在暂存栏。");
@@ -719,11 +743,21 @@ function bindEvents() {
         saveWarehouseIcon();
       }
       if (action === "edit-pinecone") {
+        const warehouse = getActiveWarehouse();
+        const pinecone = warehouse?.pinecones.find((item) => item.id === element.dataset.pineconeId);
         state.editingPineconeId = element.dataset.pineconeId;
+        state.activeShelfActionId = pinecone?.status === "temp" ? "temp" : pinecone?.shelfId || null;
+        render();
+      }
+      if (action === "toggle-shelf-actions") {
+        const shelfId = element.dataset.shelfId;
+        state.activeShelfActionId = state.activeShelfActionId === shelfId ? null : shelfId;
+        state.editingPineconeId = null;
         render();
       }
       if (action === "cancel-pinecone-edit") {
         state.editingPineconeId = null;
+        state.activeShelfActionId = null;
         render();
       }
       if (action === "save-pinecone") {
@@ -737,6 +771,14 @@ function bindEvents() {
 
   document.querySelectorAll("[data-edit-field]").forEach((field) => {
     field.addEventListener("input", () => updateDocumentDraft(field));
+  });
+
+  document.querySelectorAll(".shelf-title-row[data-action='toggle-shelf']").forEach((titleRow) => {
+    titleRow.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      toggleShelfDrawer();
+    });
   });
 
   document.querySelector("[data-input='search']")?.addEventListener("input", (event) => {
@@ -778,12 +820,40 @@ function bindEvents() {
   document.querySelectorAll("[data-action='move-pinecone']").forEach((select) => {
     select.addEventListener("change", () => {
       movePinecone(select.dataset.pineconeId, select.value);
+      state.activeShelfActionId = null;
+      render();
     });
   });
 
   bindWarehouseDragEvents();
 }
 
+function toggleShelfDrawer() {
+  state.shelfOpen = !state.shelfOpen;
+  saveState();
+
+  const drawer = document.querySelector(".shelf-drawer");
+  drawer?.classList.toggle("open", state.shelfOpen);
+
+  const label = state.shelfOpen ? "收起松果架" : "打开松果架";
+  drawer?.querySelectorAll("[data-action='toggle-shelf']").forEach((control) => {
+    control.setAttribute("aria-label", label);
+  });
+}
+
+function jumpToSection(index) {
+  const target = document.querySelector(`.doc-section[data-section-index="${index}"]`);
+  const scroller = document.querySelector(".review-doc");
+  if (!target || !scroller) return;
+  scroller.scrollTo({ top: target.offsetTop, behavior: "smooth" });
+  document.querySelectorAll(".toc button").forEach((button) => {
+    button.classList.toggle("active", Number(button.dataset.sectionIndex || -1) === index);
+    button.innerHTML = button.innerHTML.replace(/<b><\/b>/g, "");
+    if (Number(button.dataset.sectionIndex || -1) === index && !button.querySelector("b")) {
+      button.insertAdjacentHTML("beforeend", "<b></b>");
+    }
+  });
+}
 function bindWarehouseDragEvents() {
   document.querySelectorAll("[data-warehouse-card]").forEach((card) => {
     card.addEventListener("pointerdown", (event) => {
@@ -876,9 +946,9 @@ function bindWarehouseDragEvents() {
     card.addEventListener("drop", (event) => {
       event.preventDefault();
       const placement = card.classList.contains("drop-after") ? "after" : "before";
-      const next = reorderWarehouses(state.warehouses, draggedWarehouseId, card.dataset.warehouseCard, placement);
-      if (next !== state.warehouses) {
-        state.warehouses = next;
+      const next = reorderWarehouseRecords(state, draggedWarehouseId, card.dataset.warehouseCard, placement);
+      if (next !== state) {
+        state = next;
         saveState();
         render();
       }
@@ -993,9 +1063,9 @@ function finishTouchWarehouseDrag(card, event, shouldReorder) {
   clearWarehouseDragState();
 
   if (!shouldReorder || !active || !targetId) return;
-  const next = reorderWarehouses(state.warehouses, sourceId, targetId, placement);
-  if (next !== state.warehouses) {
-    state.warehouses = next;
+  const next = reorderWarehouseRecords(state, sourceId, targetId, placement);
+  if (next !== state) {
+    state = next;
     saveState();
     render();
   }
@@ -1059,7 +1129,7 @@ function updateIconCrop(key, value) {
 
 async function saveWarehouseIcon() {
   if (!state.iconCrop) return;
-  const warehouse = state.warehouses.find((item) => item.id === state.iconCrop.warehouseId);
+  const warehouse = hydrateWarehouseRecord(state, state.iconCrop.warehouseId);
   if (!warehouse) return;
 
   const image = await loadImage(state.iconCrop.dataUrl);
@@ -1084,6 +1154,7 @@ async function saveWarehouseIcon() {
   warehouse.iconDataUrl = canvas.toDataURL("image/png");
   warehouse.updatedAt = nowText();
   state.iconCrop = null;
+  commitWarehouse(warehouse);
   saveState();
   showToast("松果仓图标已保存。");
 }
@@ -1128,6 +1199,8 @@ function updateDocumentDraft(field) {
 }
 
 function saveDocumentEdits() {
+  const warehouse = getActiveWarehouse();
+  if (warehouse) commitWarehouse(warehouse);
   state.editMode = false;
   saveState();
   showToast("复盘文档已保存。");
@@ -1192,6 +1265,7 @@ function addPinecone() {
   state.addDestination = "temp";
   state.selectedShelfId = "";
   state.addOpen = false;
+  commitWarehouse(warehouse);
   saveState();
   showToast(status === "temp" ? "已放入暂存栏。" : `已放入“${shelfName}”，对应文档分区已更新。`);
 }
@@ -1216,6 +1290,7 @@ function movePinecone(pineconeId, destinationId) {
   }
 
   warehouse.updatedAt = nowText();
+  commitWarehouse(warehouse);
   saveState();
   showToast(destinationId === "temp" ? "已移动到暂存栏。" : "已移动到素材栏，对应分区已更新。");
 }
@@ -1235,6 +1310,8 @@ function savePineconeEdit(pineconeId) {
   if (pinecone.status === "shelved") updateReviewSectionForShelf(warehouse, pinecone.shelfId);
   warehouse.updatedAt = nowText();
   state.editingPineconeId = null;
+  state.activeShelfActionId = null;
+  commitWarehouse(warehouse);
   saveState();
   showToast("松果已更新。");
 }
@@ -1251,12 +1328,14 @@ function deletePinecone(pineconeId) {
   if (pinecone.status === "shelved") updateReviewSectionForShelf(warehouse, pinecone.shelfId);
   warehouse.updatedAt = nowText();
   state.editingPineconeId = null;
+  state.activeShelfActionId = null;
+  commitWarehouse(warehouse);
   saveState();
   showToast("松果已删除。");
 }
 
 function deleteWarehouse(warehouseId) {
-  const warehouse = state.warehouses.find((item) => item.id === warehouseId);
+  const warehouse = hydrateWarehouseRecord(state, warehouseId);
   if (!warehouse) return;
 
   state.warehouseDialog = { type: "delete", warehouseId };
@@ -1267,10 +1346,9 @@ function confirmDeleteWarehouse() {
   if (state.warehouseDialog?.type !== "delete") return;
   const warehouseId = state.warehouseDialog.warehouseId;
 
-  const result = removeWarehouse(state.warehouses, state.activeWarehouseId, warehouseId);
+  const result = removeWarehouseRecord(state, warehouseId);
   if (!result.removed) return;
-  state.warehouses = result.warehouses;
-  state.activeWarehouseId = result.activeWarehouseId;
+  state = result.state;
   resetWarehouseTransientState();
   saveState();
   render();
@@ -1284,6 +1362,7 @@ function resetWarehouseTransientState() {
   state.iconCrop = null;
   state.shelfOpen = false;
   state.editingPineconeId = null;
+  state.activeShelfActionId = null;
   state.warehouseDialog = null;
 }
 
@@ -1310,23 +1389,12 @@ function confirmCreateWarehouse() {
   input.setCustomValidity("");
 
   const id = uid("warehouse");
-  state.warehouses.unshift({
-    id,
-    name,
-    updatedAt: nowText(),
-    tempLimit: 5,
-    pinecones: [],
-    shelves: [
-      { id: "ideas", name: "待整理线索", description: "新松果整理后会先放到这里。" },
-    ],
-    reviewDocument: buildReviewDocument(name, [
-      {
-        shelfId: "ideas",
-        heading: "先存下零散松果",
-        summary: "这个仓库还在积累材料，添加松果后可以让 AI 开始整理。",
-        bullets: [],
-      },
-    ]),
+  const record = createEmptyWarehouseRecord(id, name, nowText());
+  state = persistWarehouseRecord(state, {
+    ...record.warehouse,
+    reviewDocument: record.document,
+    shelves: record.shelves,
+    pinecones: record.pinecones,
   });
   state.activeWarehouseId = id;
   state.warehouseDialog = null;
@@ -1349,6 +1417,7 @@ async function organizeWarehouse(mode = "existing") {
 
   Object.assign(warehouse, result);
   warehouse.updatedAt = nowText();
+  commitWarehouse(warehouse);
   saveState();
   showToast(mode === "reorganize" ? "已全部重新整理，复盘文档已更新。" : `${tempCount} 颗松果已放入素材栏。`);
 }
@@ -1358,47 +1427,7 @@ async function organizeWarehouseWithApi(_warehouse, _mode) {
 }
 
 function organizeWarehouseWithMock(warehouse, mode) {
-  const working = structuredClone(warehouse);
-  const targetPinecones = mode === "reorganize"
-    ? working.pinecones
-    : working.pinecones.filter((pinecone) => pinecone.status === "temp");
-
-  ensureDefaultShelves(working);
-
-  targetPinecones.forEach((pinecone) => {
-    const shelfId = chooseShelfId(pinecone.content);
-    pinecone.shelfId = shelfId;
-    pinecone.status = "shelved";
-  });
-
-  working.reviewDocument = buildReviewFromShelves(working);
-  return working;
-}
-
-function ensureDefaultShelves(warehouse) {
-  const defaults = [
-    { id: "resume", name: "简历准备", description: "关于简历内容选择、表达和优化的建议。" },
-    { id: "before", name: "面试前准备", description: "关于岗位、公司、自我介绍和作品准备。" },
-    { id: "performance", name: "面试中的表现", description: "关于现场回答、沟通节奏和信任感。" },
-    { id: "qa", name: "常见问题回答思路", description: "关于高频问题、反问和答案结构。" },
-    { id: "follow", name: "面试后的跟进", description: "关于记录、复盘和下一轮改进。" },
-    { id: "other", name: "其他经验补充", description: "暂时无法归入前面章节的经验。" },
-  ];
-
-  defaults.forEach((shelf) => {
-    if (!warehouse.shelves.some((current) => current.id === shelf.id)) {
-      warehouse.shelves.push(shelf);
-    }
-  });
-}
-
-function chooseShelfId(content) {
-  if (/简历|项目|经历|岗位|JD/.test(content)) return "resume";
-  if (/准备|公司|作品|自我介绍|提前/.test(content)) return "before";
-  if (/现场|表达|回答|沟通|不会/.test(content)) return "performance";
-  if (/问题|反问|规划|失败|离职/.test(content)) return "qa";
-  if (/面试后|记录|复盘|下一轮|跟进/.test(content)) return "follow";
-  return "other";
+  return organizeWarehouseLocally(warehouse, mode);
 }
 
 function updateReviewSectionForShelf(warehouse, shelfId) {
@@ -1420,29 +1449,6 @@ function updateReviewSectionForShelf(warehouse, shelfId) {
   } else {
     warehouse.reviewDocument.sections.push(nextSection);
   }
-}
-
-function buildReviewFromShelves(warehouse) {
-  const sections = warehouse.shelves.map((shelf) => {
-    const pinecones = warehouse.pinecones.filter((pinecone) => pinecone.status === "shelved" && pinecone.shelfId === shelf.id);
-    if (!pinecones.length) return null;
-    return {
-      shelfId: shelf.id,
-      heading: shelf.name,
-      summary: shelf.description,
-      bullets: pinecones.slice(0, 4).map((pinecone) => ({
-        text: summarizePinecone(pinecone.content),
-        pineconeIds: [pinecone.id],
-      })),
-    };
-  }).filter(Boolean);
-
-  return buildReviewDocument(warehouse.name, sections.length ? sections : [{
-    shelfId: "other",
-    heading: "先积累更多松果",
-    summary: "当前内容还不多，可以继续添加材料再整理。",
-    bullets: [],
-  }]);
 }
 
 function buildReviewDocument(title, sections) {
